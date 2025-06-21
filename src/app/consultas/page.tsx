@@ -5,23 +5,33 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Header } from '@/components/Header';
-import { NuevaConsultaModal } from '@/components/consultas/NuevaConsultaModal';
-import { collection, query, where, orderBy, getDocs, collectionGroup, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, collectionGroup, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Consulta } from '@/types';
-import { Plus, Search } from 'lucide-react';
+import type { Consulta, Appointment } from '@/types';
+import { Search, Calendar, Clock, Trash2, Pencil } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { DetalleConsultaModal } from '@/components/consultas/DetalleConsultaModal';
 import { useToast } from '@/components/ui/use-toast';
+import { getAppointments, deleteAppointment } from '@/lib/firestore';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { EditarConsultaModal } from '@/components/consultas/EditarConsultaModal';
+import { 
+  CanCreateConsultas, 
+  CanEditMedicalData, 
+  DisabledCreateConsultas,
+  DisabledEditMedicalData,
+  DisabledButton
+} from '@/components/RoleGuard';
 
 export default function ConsultasPage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { toast } = useToast();
   const [consultas, setConsultas] = useState<Consulta[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isNuevaConsultaOpen, setIsNuevaConsultaOpen] = useState(false);
   const [selectedConsulta, setSelectedConsulta] = useState<Consulta | null>(null);
   const [isDetalleOpen, setIsDetalleOpen] = useState(false);
+  const [isEditarOpen, setIsEditarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   const cargarConsultas = async () => {
@@ -86,6 +96,7 @@ export default function ConsultasPage() {
             sintomas: consultaData.sintomas,
             diagnostico: consultaData.diagnostico,
             tratamiento: consultaData.tratamiento,
+            estado: consultaData.estado || 'Pendiente', // Por defecto pendiente si no existe
             proximaCita: consultaData.proximaCita ? (consultaData.proximaCita as Timestamp).toDate() : undefined,
             mascota: {
               id: mascotaId,
@@ -97,6 +108,7 @@ export default function ConsultasPage() {
               dueno: {
                 id: duenoId,
                 nombre: duenoData.nombre,
+                apellido: duenoData.apellido,
                 rut: duenoData.rut,
                 telefono: duenoData.telefono,
                 email: duenoData.email,
@@ -137,8 +149,22 @@ export default function ConsultasPage() {
     }
   };
 
+  const cargarCitasAgendadas = async () => {
+    try {
+      const fetchedAppointments = await getAppointments();
+      // Filtrar solo las citas programadas o confirmadas (no completadas)
+      const citasPendientes = fetchedAppointments.filter(app => 
+        app.status === 'Programada' || app.status === 'Confirmada'
+      );
+      setAppointments(citasPendientes);
+    } catch (error) {
+      console.error('Error al cargar citas agendadas:', error);
+    }
+  };
+
   useEffect(() => {
     cargarConsultas();
+    cargarCitasAgendadas();
   }, []);
 
   const formatDate = (date: Date) => {
@@ -151,6 +177,16 @@ export default function ConsultasPage() {
     });
   };
 
+  const formatAppointmentDate = (dateStr: string, timeStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }) + ` a las ${timeStr}`;
+  };
+
   const filteredConsultas = consultas.filter(consulta => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -160,89 +196,337 @@ export default function ConsultasPage() {
     );
   });
 
+  const handleDeleteAppointment = async (appointmentId: string, patientName: string) => {
+    if (confirm(`¿Estás seguro de que quieres eliminar la cita de ${patientName}?`)) {
+      try {
+        await deleteAppointment(appointmentId);
+        toast({
+          title: "Cita eliminada",
+          description: "La cita ha sido eliminada exitosamente.",
+        });
+        // Recargar las citas
+        cargarCitasAgendadas();
+      } catch (error) {
+        console.error('Error al eliminar cita:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo eliminar la cita. Por favor, intenta de nuevo.",
+          variant: 'destructive'
+        });
+      }
+    }
+  };
+
+  const handleMarcarComoRealizada = async (consulta: Consulta) => {
+    try {
+      // Actualizar el estado de la consulta en Firestore
+      const consultaRef = doc(db, 'duenos', consulta.mascotaId, 'mascotas', consulta.mascotaId, 'consultas', consulta.id);
+      await updateDoc(consultaRef, {
+        estado: 'Realizada'
+      });
+
+      toast({
+        title: "Consulta actualizada",
+        description: "La consulta ha sido marcada como realizada.",
+      });
+
+      // Recargar las consultas
+      cargarConsultas();
+    } catch (error) {
+      console.error('Error al actualizar consulta:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la consulta. Por favor, intenta de nuevo.",
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleEditConsulta = (consulta: Consulta) => {
+    setSelectedConsulta(consulta);
+    setIsEditarOpen(true);
+  };
+
+  const handleConsultaUpdated = () => {
+    cargarConsultas();
+  };
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <Header title="Consultas" />
-      
-      <div className="flex justify-between items-center">
-        <div className="flex gap-4 flex-1 max-w-md">
-          <div className="relative flex-1">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por mascota, dueño o motivo..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+    <>
+      <div className="flex h-screen bg-background">
+        <div className="flex flex-col flex-1">
+          <Header title="Consultas" />
+          
+          <main className="flex-1 p-6 overflow-y-auto bg-background space-y-6">
+            {/* Sección de Citas Agendadas - Visible para todos pero con elementos desactivados */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">Citas Agendadas</h2>
+              </div>
+              
+              {appointments.length === 0 ? (
+                <Card>
+                  <CardContent className="p-6 text-center">
+                    <p className="text-muted-foreground">No hay citas agendadas pendientes</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Ve a la sección de Agenda para programar una cita
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-3">
+                  {appointments.map((appointment) => (
+                    <Card 
+                      key={appointment.id} 
+                      className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-primary"
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-primary" />
+                              <span className="font-semibold">{appointment.patientName}</span>
+                              <span className="text-sm text-muted-foreground">
+                                ({appointment.ownerName})
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {formatAppointmentDate(appointment.date, appointment.time)}
+                            </p>
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                              <span>Tipo: {appointment.type}</span>
+                              <span>Veterinario: {appointment.veterinarian}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <DisabledButton
+                              resource="consultas"
+                              action="update"
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              tooltip="Solo administradores pueden eliminar citas"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteAppointment(appointment.id, appointment.patientName);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </DisabledButton>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Sección de Consultas Existentes */}
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-semibold">Consultas</h2>
+                </div>
+                <div className="flex gap-4 flex-1 max-w-md">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por mascota, dueño o motivo..."
+                      className="pl-8"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="flex justify-center items-center h-64">
+                  <LoadingSpinner size="md" variant="primary" />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Consultas Pendientes */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-orange-600 flex items-center gap-2">
+                      <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                      Consultas Pendientes
+                    </h3>
+                    
+                    {filteredConsultas.filter(c => c.estado === 'Pendiente').length === 0 ? (
+                      <Card>
+                        <CardContent className="p-6 text-center">
+                          <p className="text-muted-foreground">No hay consultas pendientes</p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="grid gap-4">
+                        {filteredConsultas
+                          .filter(consulta => consulta.estado === 'Pendiente')
+                          .map((consulta) => (
+                          <Card 
+                            key={consulta.id} 
+                            className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-orange-500"
+                            onClick={() => {
+                              setSelectedConsulta(consulta);
+                              setIsDetalleOpen(true);
+                            }}
+                          >
+                            <CardHeader>
+                              <CardTitle className="flex justify-between items-start">
+                                <div>
+                                  <span className="text-lg font-semibold">{consulta.mascota?.nombre}</span>
+                                  <span className="text-sm text-muted-foreground ml-2">
+                                    - {consulta.mascota?.dueno?.nombre}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-muted-foreground">
+                                    {formatDate(consulta.fecha)}
+                                  </span>
+                                  <DisabledButton
+                                    resource="consultas"
+                                    action="update"
+                                    size="sm"
+                                    variant="outline"
+                                    tooltip="Editar datos de la consulta"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditConsulta(consulta);
+                                    }}
+                                  >
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Editar
+                                  </DisabledButton>
+                                  <DisabledButton
+                                    resource="consultas"
+                                    action="update"
+                                    size="sm"
+                                    className="bg-green-600 hover:bg-green-700"
+                                    tooltip="Marcar la consulta como realizada"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMarcarComoRealizada(consulta);
+                                    }}
+                                  >
+                                    Marcar como Realizada
+                                  </DisabledButton>
+                                </div>
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-sm text-muted-foreground mb-2">
+                                <strong>Motivo:</strong> {consulta.motivo}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                <strong>Diagnóstico:</strong> {consulta.diagnostico || 'Pendiente'}
+                              </p>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Consultas Realizadas */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-green-600 flex items-center gap-2">
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      Consultas Realizadas
+                    </h3>
+                    
+                    {filteredConsultas.filter(c => c.estado === 'Realizada').length === 0 ? (
+                      <Card>
+                        <CardContent className="p-6 text-center">
+                          <p className="text-muted-foreground">No hay consultas realizadas</p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="grid gap-4">
+                        {filteredConsultas
+                          .filter(consulta => consulta.estado === 'Realizada')
+                          .map((consulta) => (
+                          <Card 
+                            key={consulta.id} 
+                            className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-green-500"
+                            onClick={() => {
+                              setSelectedConsulta(consulta);
+                              setIsDetalleOpen(true);
+                            }}
+                          >
+                            <CardHeader>
+                              <CardTitle className="flex justify-between items-start">
+                                <div>
+                                  <span className="text-lg font-semibold">{consulta.mascota?.nombre}</span>
+                                  <span className="text-sm text-muted-foreground ml-2">
+                                    - {consulta.mascota?.dueno?.nombre}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-muted-foreground">
+                                    {formatDate(consulta.fecha)}
+                                  </span>
+                                  <DisabledButton
+                                    resource="consultas"
+                                    action="update"
+                                    size="sm"
+                                    variant="outline"
+                                    tooltip="Editar datos de la consulta"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditConsulta(consulta);
+                                    }}
+                                  >
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Editar
+                                  </DisabledButton>
+                                </div>
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-sm text-muted-foreground mb-2">
+                                <strong>Motivo:</strong> {consulta.motivo}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                <strong>Diagnóstico:</strong> {consulta.diagnostico}
+                              </p>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </main>
         </div>
-        <Button onClick={() => setIsNuevaConsultaOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Consulta
-        </Button>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      ) : filteredConsultas.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No hay consultas registradas</p>
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {filteredConsultas.map((consulta) => (
-            <Card 
-              key={consulta.id} 
-              className="cursor-pointer hover:bg-accent/50 transition-colors"
-              onClick={() => {
-                setSelectedConsulta(consulta);
-                setIsDetalleOpen(true);
-              }}
-            >
-              <CardHeader>
-                <CardTitle className="flex justify-between items-start">
-                  <div>
-                    <span className="text-lg font-semibold">{consulta.mascota?.nombre}</span>
-                    <span className="text-sm text-muted-foreground ml-2">
-                      - {consulta.mascota?.dueno?.nombre}
-                    </span>
-                  </div>
-                  <span className="text-sm text-muted-foreground">
-                    {formatDate(consulta.fecha)}
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-2">
-                  <strong>Motivo:</strong> {consulta.motivo}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  <strong>Diagnóstico:</strong> {consulta.diagnostico}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      <NuevaConsultaModal
-        isOpen={isNuevaConsultaOpen}
-        onClose={() => setIsNuevaConsultaOpen(false)}
-        onConsultaCreated={cargarConsultas}
-      />
-
       {selectedConsulta && (
-        <DetalleConsultaModal
-          consulta={selectedConsulta}
-          isOpen={isDetalleOpen}
-          onClose={() => {
-            setIsDetalleOpen(false);
-            setSelectedConsulta(null);
-          }}
-        />
+        <>
+          <DetalleConsultaModal
+            consulta={selectedConsulta}
+            isOpen={isDetalleOpen}
+            onClose={() => {
+              setIsDetalleOpen(false);
+              setSelectedConsulta(null);
+            }}
+            onEdit={() => handleEditConsulta(selectedConsulta)}
+          />
+          <EditarConsultaModal
+            consulta={selectedConsulta}
+            isOpen={isEditarOpen}
+            onClose={() => {
+              setIsEditarOpen(false);
+              setSelectedConsulta(null);
+            }}
+            onConsultaUpdated={handleConsultaUpdated}
+          />
+        </>
       )}
-    </div>
+    </>
   );
 } 

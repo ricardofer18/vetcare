@@ -7,7 +7,7 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Mascota, ConsultaFormData } from '@/types';
+import { Patient, ConsultaFormData } from '@/types';
 import { AITextarea } from '@/components/ui/ai-textarea';
 import {
   Form,
@@ -27,7 +27,7 @@ const formSchema = z.object({
 });
 
 interface ConsultaFormProps {
-  mascota: Mascota;
+  mascota: Patient | null;
   onConsultaCreated: (data: ConsultaFormData) => void;
 }
 
@@ -49,19 +49,35 @@ export function ConsultaForm({ mascota, onConsultaCreated }: ConsultaFormProps) 
     onConsultaCreated(values);
   }
 
-  const mascotaInfo = {
-    nombre: mascota.nombre,
-    especie: mascota.especie,
-    raza: mascota.raza,
-    edad: mascota.edad,
-    peso: mascota.peso,
-    sexo: mascota.sexo,
-  };
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid gap-4">
+          {/* Datos de paciente y dueño */}
+          {mascota ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <FormLabel>Paciente</FormLabel>
+                <Input value={mascota.nombre} disabled className="bg-muted" />
+              </div>
+              <div>
+                <FormLabel>Dueño</FormLabel>
+                <Input value={mascota.dueno?.nombre || ''} disabled className="bg-muted" />
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <FormLabel>Paciente</FormLabel>
+                <Input placeholder="Nombre del paciente" required />
+              </div>
+              <div>
+                <FormLabel>Dueño</FormLabel>
+                <Input placeholder="Nombre del dueño" required />
+              </div>
+            </div>
+          )}
+
           <FormField
             control={form.control}
             name="motivo"
@@ -88,7 +104,14 @@ export function ConsultaForm({ mascota, onConsultaCreated }: ConsultaFormProps) 
                     placeholder="Describa los síntomas presentados"
                     label="Síntomas"
                     field="sintomas"
-                    mascotaInfo={mascotaInfo}
+                    mascotaInfo={mascota ? {
+                      nombre: mascota.nombre,
+                      especie: mascota.especie,
+                      raza: mascota.raza,
+                      edad: mascota.edad,
+                      peso: mascota.peso,
+                      sexo: mascota.sexo,
+                    } as any : undefined}
                     motivo={form.watch('motivo')}
                   />
                 </FormControl>
@@ -109,7 +132,14 @@ export function ConsultaForm({ mascota, onConsultaCreated }: ConsultaFormProps) 
                     placeholder="Ingrese el diagnóstico"
                     label="Diagnóstico"
                     field="diagnostico"
-                    mascotaInfo={mascotaInfo}
+                    mascotaInfo={mascota ? {
+                      nombre: mascota.nombre,
+                      especie: mascota.especie,
+                      raza: mascota.raza,
+                      edad: mascota.edad,
+                      peso: mascota.peso,
+                      sexo: mascota.sexo,
+                    } as any : undefined}
                     motivo={form.watch('motivo')}
                     sintomas={form.watch('sintomas')}
                   />
@@ -131,7 +161,14 @@ export function ConsultaForm({ mascota, onConsultaCreated }: ConsultaFormProps) 
                     placeholder="Describa el tratamiento indicado"
                     label="Tratamiento"
                     field="tratamiento"
-                    mascotaInfo={mascotaInfo}
+                    mascotaInfo={mascota ? {
+                      nombre: mascota.nombre,
+                      especie: mascota.especie,
+                      raza: mascota.raza,
+                      edad: mascota.edad,
+                      peso: mascota.peso,
+                      sexo: mascota.sexo,
+                    } as any : undefined}
                     motivo={form.watch('motivo')}
                     sintomas={form.watch('sintomas')}
                     diagnostico={form.watch('diagnostico')}

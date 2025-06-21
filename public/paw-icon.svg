@@ -1,0 +1,27 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .paw-fill { fill: #000000; }
+      @media (prefers-color-scheme: dark) {
+        .paw-fill { fill: #ffffff; }
+      }
+      .dark .paw-fill { fill: #ffffff; }
+    </style>
+  </defs>
+  
+  <!-- Patita principal -->
+  <ellipse cx="20" cy="25" rx="7.5" ry="5" class="paw-fill"/>
+  
+  <!-- Dedos -->
+  <circle cx="12.5" cy="15" r="3.75" class="paw-fill"/>
+  <circle cx="20" cy="12.5" r="3.75" class="paw-fill"/>
+  <circle cx="27.5" cy="15" r="3.75" class="paw-fill"/>
+  
+  <!-- Almohadilla central -->
+  <ellipse cx="20" cy="22.5" rx="2.5" ry="2" class="paw-fill" opacity="0.8"/>
+  
+  <!-- Detalles de los dedos -->
+  <circle cx="11.25" cy="13.75" r="1.25" class="paw-fill" opacity="0.6"/>
+  <circle cx="18.75" cy="11.25" r="1.25" class="paw-fill" opacity="0.6"/>
+  <circle cx="26.25" cy="13.75" r="1.25" class="paw-fill" opacity="0.6"/>
+</svg> 

@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Mascota, Consulta } from '@/types';
+import { Patient, Consulta } from '@/types';
 import { Calendar, Clock, FileText, User } from 'lucide-react';
 
 interface PatientHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  paciente: Mascota;
+  paciente: Patient;
 }
 
 export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
@@ -89,9 +89,9 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] bg-gray-800 border-gray-700">
+      <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle className="text-white">
+          <DialogTitle>
             Historial de Consultas - {paciente.nombre}
           </DialogTitle>
         </DialogHeader>
@@ -99,23 +99,23 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
         <ScrollArea className="max-h-[calc(90vh-140px)]">
           <div className="space-y-4 pr-4">
             {/* Información del paciente */}
-            <div className="bg-gray-700 rounded-lg p-4">
+            <div className="bg-muted rounded-lg p-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <span className="text-gray-400">Especie:</span>
-                  <p className="text-white">{paciente.especie}</p>
+                  <span className="text-muted-foreground">Especie:</span>
+                  <p className="font-medium">{paciente.especie}</p>
                 </div>
                 <div>
-                  <span className="text-gray-400">Raza:</span>
-                  <p className="text-white">{paciente.raza}</p>
+                  <span className="text-muted-foreground">Raza:</span>
+                  <p className="font-medium">{paciente.raza}</p>
                 </div>
                 <div>
-                  <span className="text-gray-400">Edad:</span>
-                  <p className="text-white">{paciente.edad} años</p>
+                  <span className="text-muted-foreground">Edad:</span>
+                  <p className="font-medium">{paciente.edad} años</p>
                 </div>
                 <div>
-                  <span className="text-gray-400">Dueño:</span>
-                  <p className="text-white">{paciente.dueno?.nombre}</p>
+                  <span className="text-muted-foreground">Dueño:</span>
+                  <p className="font-medium">{paciente.dueno?.nombre}</p>
                 </div>
               </div>
             </div>
@@ -123,58 +123,51 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
             {/* Lista de consultas */}
             {isLoading ? (
               <div className="flex justify-center items-center h-32">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
             ) : consultas.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <FileText className="w-12 h-12 mx-auto mb-4 text-gray-600" />
-                <p>No hay consultas registradas para {paciente.nombre}</p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Las consultas aparecerán aquí cuando se registren nuevas visitas
-                </p>
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No hay consultas registradas para este paciente</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {consultas.map((consulta) => (
-                  <div key={consulta.id} className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+                  <div
+                    key={consulta.id}
+                    className="bg-card border border-border rounded-lg p-4"
+                  >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-2">
-                        <Calendar className="w-4 h-4 text-blue-400" />
-                        <span className="text-white font-medium">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-medium text-card-foreground">
                           {formatDate(consulta.fecha)}
                         </span>
                       </div>
-                      {consulta.veterinario && (
-                        <div className="flex items-center space-x-2 text-sm text-gray-400">
-                          <User className="w-4 h-4" />
-                          <span>{consulta.veterinario.nombre}</span>
-                        </div>
-                      )}
                     </div>
                     
                     <div className="grid gap-3 text-sm">
                       <div>
-                        <span className="text-gray-400 font-medium">Motivo:</span>
-                        <p className="text-white mt-1">{consulta.motivo}</p>
+                        <span className="text-muted-foreground font-medium">Motivo:</span>
+                        <p className="text-card-foreground mt-1">{consulta.motivo}</p>
                       </div>
                       
                       <div>
-                        <span className="text-gray-400 font-medium">Síntomas:</span>
-                        <p className="text-white mt-1">{consulta.sintomas}</p>
+                        <span className="text-muted-foreground font-medium">Síntomas:</span>
+                        <p className="text-card-foreground mt-1">{consulta.sintomas}</p>
                       </div>
                       
                       <div>
-                        <span className="text-gray-400 font-medium">Diagnóstico:</span>
-                        <p className="text-white mt-1">{consulta.diagnostico}</p>
+                        <span className="text-muted-foreground font-medium">Diagnóstico:</span>
+                        <p className="text-card-foreground mt-1">{consulta.diagnostico}</p>
                       </div>
                       
                       <div>
-                        <span className="text-gray-400 font-medium">Tratamiento:</span>
-                        <p className="text-white mt-1">{consulta.tratamiento}</p>
+                        <span className="text-muted-foreground font-medium">Tratamiento:</span>
+                        <p className="text-card-foreground mt-1">{consulta.tratamiento}</p>
                       </div>
                       
                       {consulta.proximaCita && (
-                        <div className="flex items-center space-x-2 text-blue-400">
+                        <div className="flex items-center space-x-2 text-primary">
                           <Clock className="w-4 h-4" />
                           <span className="text-sm">
                             Próxima cita: {formatDate(consulta.proximaCita)}
@@ -190,7 +183,7 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
         </ScrollArea>
         
         <div className="flex justify-end pt-4">
-          <Button onClick={onClose} variant="outline" className="border-gray-600 text-gray-300">
+          <Button onClick={onClose} variant="outline">
             Cerrar
           </Button>
         </div>

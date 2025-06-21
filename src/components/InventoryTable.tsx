@@ -1,7 +1,8 @@
 import React from 'react';
 import { Button } from './ui/button';
-import { Pencil, Trash2 } from 'lucide-react';
-import { InventoryItem } from '../lib/firestore';
+import { Pencil, Trash2, Eye } from 'lucide-react';
+import { InventoryItem } from '../types';
+import { DisabledButton } from './RoleGuard';
 
 const MedicationIcon = <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75l3 3m0 0l3-3m-3 3v7.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>;
 const SupplyIcon = <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 10.5h12M8.25 14.25h12M8.25 18H12M3 6.75H7.5a1.5 1.5 0 0 1 1.5 1.5v3.75m-9-3.75H4.5M3 10.5H7.5a1.5 1.5 0 0 1 1.5 1.5v3.75m-9-3.75H4.5M9 16.5v-6a3 3 0 0 0-3-3H3m0 0l3-3m-3 3l3 3" /></svg>;
@@ -19,14 +20,15 @@ interface InventoryTableProps {
   products: InventoryItem[];
   onEdit: (product: InventoryItem) => void;
   onDelete: (productId: string) => void;
+  onView: (product: InventoryItem) => void;
 }
 
-const InventoryTable: React.FC<InventoryTableProps> = ({ products, onEdit, onDelete }) => {
+const InventoryTable: React.FC<InventoryTableProps> = ({ products, onEdit, onDelete, onView }) => {
   const getStatusColor = (quantity: number, minQuantity: number) => {
-    if (quantity === 0) return 'bg-red-800';
-    if (quantity < minQuantity) return 'bg-yellow-700';
-    if (quantity === minQuantity) return 'bg-yellow-600';
-    return 'bg-green-700';
+    if (quantity === 0) return 'bg-destructive';
+    if (quantity < minQuantity) return 'bg-yellow-500';
+    if (quantity === minQuantity) return 'bg-yellow-400';
+    return 'bg-green-500';
   };
 
   const getStatusText = (quantity: number, minQuantity: number) => {
@@ -36,56 +38,99 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ products, onEdit, onDel
   };
 
   return (
-    <div className="bg-[#1f2937] rounded-lg shadow overflow-hidden">
-      <table className="min-w-full divide-y divide-gray-700">
-        <thead className="bg-[#374151]">
-          <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Producto</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Categoría</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Stock</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Precio</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Última Reposición</th>
-            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Acciones</th>
-          </tr>
-        </thead>
-        <tbody className="bg-[#1f2937] divide-y divide-gray-700">
-          {products.map(product => (
-            <tr key={product.id} className="hover:bg-[#374151]">
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 h-10 w-10 text-gray-400">
-                    {iconByCategory[product.category] || MedicationIcon}
-                  </div>
-                  <div className="ml-4">
-                    <div className="text-sm font-medium text-white">{product.name}</div>
-                  </div>
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{product.category}</td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                 <div className="flex items-center">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(product.quantity, product.minQuantity)} text-white mr-2`}>
-                        {getStatusText(product.quantity, product.minQuantity)}
-                    </span>
-                    <span className="text-sm text-gray-300">{product.quantity} / {product.minQuantity}</span>
-                 </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${product.price.toFixed(2)}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{product.lastRestock}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <div className="flex items-center justify-end gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => onEdit(product)}>
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => onDelete(product.id)} className="text-red-500 hover:text-red-400">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </td>
+    <div className="bg-card rounded-lg shadow overflow-hidden border">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-border">
+          <thead className="bg-muted">
+            <tr>
+              <th scope="col" className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Producto</th>
+              <th scope="col" className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Categoría</th>
+              <th scope="col" className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Stock</th>
+              <th scope="col" className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden md:table-cell">Precio</th>
+              <th scope="col" className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Última Reposición</th>
+              <th scope="col" className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Acciones</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="bg-card divide-y divide-border">
+            {products.map(product => (
+              <tr 
+                key={product.id} 
+                className="hover:bg-accent/50 cursor-pointer transition-colors"
+                onClick={() => onView(product)}
+              >
+                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground">
+                      {iconByCategory[product.category] || MedicationIcon}
+                    </div>
+                    <div className="ml-2 sm:ml-4 min-w-0 flex-1">
+                      <div className="text-sm font-medium text-card-foreground truncate">{product.name}</div>
+                      <div className="text-xs text-muted-foreground sm:hidden">{product.category}</div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-muted-foreground hidden sm:table-cell">{product.category}</td>
+                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                   <div className="flex items-center">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(product.quantity, product.minQuantity)} text-white mr-2`}>
+                          {getStatusText(product.quantity, product.minQuantity)}
+                      </span>
+                      <span className="text-xs sm:text-sm text-card-foreground">{product.quantity} / {product.minQuantity}</span>
+                   </div>
+                </td>
+                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-card-foreground hidden md:table-cell">${product.price.toFixed(2)}</td>
+                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-card-foreground hidden lg:table-cell">{product.lastRestock}</td>
+                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <div className="flex items-center justify-end gap-1 sm:gap-2">
+                    <DisabledButton 
+                      resource="inventario"
+                      action="read"
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onView(product);
+                      }}
+                      tooltip="Ver detalles del producto"
+                      className="text-xs sm:text-sm"
+                    >
+                      <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </DisabledButton>
+                    <DisabledButton 
+                      resource="inventario"
+                      action="update"
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(product);
+                      }}
+                      tooltip="Editar producto"
+                      className="text-xs sm:text-sm"
+                    >
+                      <Pencil className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </DisabledButton>
+                    <DisabledButton 
+                      resource="inventario"
+                      action="delete"
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(product.id);
+                      }} 
+                      tooltip="Eliminar producto"
+                      className="text-destructive hover:text-destructive/80 text-xs sm:text-sm"
+                    >
+                      <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </DisabledButton>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

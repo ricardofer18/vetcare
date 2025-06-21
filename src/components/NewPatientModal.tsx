@@ -15,8 +15,11 @@ const NewPatientModal: React.FC<NewPatientModalProps> = ({ onClose, onPatientCre
     gender: '',
     ownerId: '',
     ownerName: '',
+    ownerLastName: '',
+    ownerRut: '',
     ownerPhone: '',
-    ownerEmail: ''
+    ownerEmail: '',
+    ownerAddress: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,34 +27,40 @@ const NewPatientModal: React.FC<NewPatientModalProps> = ({ onClose, onPatientCre
     try {
       // Primero crear el dueño
       const ownerData = {
-        name: newPatientData.ownerName,
-        phone: newPatientData.ownerPhone,
-        email: newPatientData.ownerEmail
+        nombre: newPatientData.ownerName,
+        apellido: newPatientData.ownerLastName,
+        rut: newPatientData.ownerRut,
+        email: newPatientData.ownerEmail,
+        telefono: newPatientData.ownerPhone,
+        direccion: newPatientData.ownerAddress
       };
       const ownerId = await addOwner(ownerData);
 
       // Luego crear la mascota
       const patientData = {
-        name: newPatientData.name,
-        species: newPatientData.species,
-        breed: newPatientData.breed,
-        age: newPatientData.age,
-        gender: newPatientData.gender,
+        nombre: newPatientData.name,
+        especie: newPatientData.species,
+        raza: newPatientData.breed,
+        edad: newPatientData.age,
+        sexo: newPatientData.gender,
         ownerId: ownerId,
         owner: newPatientData.ownerName,
-        image: '',
-        code: '',
-        veterinarian: '',
-        lastAttention: '',
-        status: 'Activo' as const,
+        imagen: '',
+        codigo: '',
+        veterinario: '',
+        ultimaAtencion: '',
+        estado: 'Activo' as const,
         ownerDetails: {
           id: ownerId,
-          name: newPatientData.ownerName,
-          phone: newPatientData.ownerPhone,
-          email: newPatientData.ownerEmail
+          nombre: newPatientData.ownerName,
+          apellido: newPatientData.ownerLastName,
+          rut: newPatientData.ownerRut,
+          email: newPatientData.ownerEmail,
+          telefono: newPatientData.ownerPhone,
+          direccion: newPatientData.ownerAddress
         }
       };
-      const patientId = await addPatient(patientData);
+      const patientId = await addPatient(ownerId, patientData);
 
       // Notificar al componente padre sobre la nueva mascota creada
       const newPatient = { id: patientId, ...patientData };
@@ -175,6 +184,36 @@ const NewPatientModal: React.FC<NewPatientModalProps> = ({ onClose, onPatientCre
               </div>
 
               <div className="mt-3">
+                <label className="block text-sm font-medium mb-1" htmlFor="newOwnerLastName">
+                  Apellido del Dueño
+                </label>
+                <input
+                  type="text"
+                  id="newOwnerLastName"
+                  className="w-full p-2 border rounded"
+                  value={newPatientData.ownerLastName}
+                  onChange={(e) => setNewPatientData({...newPatientData, ownerLastName: e.target.value})}
+                  required
+                  placeholder="Ingrese el apellido del dueño"
+                />
+              </div>
+
+              <div className="mt-3">
+                <label className="block text-sm font-medium mb-1" htmlFor="newOwnerRut">
+                  RUT del Dueño
+                </label>
+                <input
+                  type="text"
+                  id="newOwnerRut"
+                  className="w-full p-2 border rounded"
+                  value={newPatientData.ownerRut}
+                  onChange={(e) => setNewPatientData({...newPatientData, ownerRut: e.target.value})}
+                  required
+                  placeholder="Ingrese el RUT del dueño"
+                />
+              </div>
+
+              <div className="mt-3">
                 <label className="block text-sm font-medium mb-1" htmlFor="newOwnerPhone">
                   Teléfono del Dueño
                 </label>
@@ -201,6 +240,21 @@ const NewPatientModal: React.FC<NewPatientModalProps> = ({ onClose, onPatientCre
                   onChange={(e) => setNewPatientData({...newPatientData, ownerEmail: e.target.value})}
                   required
                   placeholder="Ingrese el email del dueño"
+                />
+              </div>
+
+              <div className="mt-3">
+                <label className="block text-sm font-medium mb-1" htmlFor="newOwnerAddress">
+                  Dirección del Dueño
+                </label>
+                <input
+                  type="text"
+                  id="newOwnerAddress"
+                  className="w-full p-2 border rounded"
+                  value={newPatientData.ownerAddress}
+                  onChange={(e) => setNewPatientData({...newPatientData, ownerAddress: e.target.value})}
+                  required
+                  placeholder="Ingrese la dirección del dueño"
                 />
               </div>
             </div>

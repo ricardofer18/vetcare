@@ -7,10 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { getAuth } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { useAuth } from '@/lib/auth';
+import { db, auth } from '@/lib/firebase';
+import { Eye, EyeOff } from 'lucide-react';
+import { UserRole } from '@/types';
+import { createUserWithRole } from '@/lib/firestore';
 
 interface CreateUserModalProps {
   isOpen: boolean;
@@ -22,57 +24,27 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserMo
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [role, setRole] = useState('usuario');
+  const [role, setRole] = useState<UserRole>('secretaria');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const auth = getAuth();
-      const token = await auth.currentUser?.getIdToken();
+      // Crear usuario usando Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-      if (!token) {
-        throw new Error('No hay token de autenticación');
-      }
-
-      // Crear usuario usando la API REST de Firebase Auth
-      const response = await fetch(
-        'https://identitytoolkit.googleapis.com/v1/projects/vetcare-9c0c0/accounts:signUp?key=AIzaSyDNPcFVXDjBWxUZBs9kpVGXoLgGRU6uHhE',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            email,
-            password,
-            displayName,
-            returnSecureToken: true
-          })
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error.message);
-      }
-
-      const data = await response.json();
-      const newUserId = data.localId;
-
-      // Guardar información adicional en Firestore
-      await setDoc(doc(db, 'usuarios', newUserId), {
-        role: role,
-        email: email,
-        displayName: displayName,
-        createdAt: new Date().toISOString(),
-        emailVerified: false,
-        disabled: false
+      // Actualizar el displayName del usuario
+      await updateProfile(user, {
+        displayName: displayName
       });
+
+      // Guardar información adicional en Firestore con rol
+      await createUserWithRole(user.uid, email, displayName, role);
 
       toast({
         title: 'Usuario creado',
@@ -84,7 +56,8 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserMo
       setEmail('');
       setPassword('');
       setDisplayName('');
-      setRole('usuario');
+      setRole('secretaria');
+      setShowPassword(false);
       
       onUserCreated();
       onClose();
@@ -108,18 +81,11 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserMo
           case 'auth/weak-password':
             errorMessage = 'La contraseña es demasiado débil. Debe tener al menos 6 caracteres';
             break;
-          case 'permission-denied':
-            errorMessage = 'No tienes permisos para crear usuarios';
-            break;
-          case 'unavailable':
-            errorMessage = 'El servicio no está disponible. Por favor, intenta más tarde';
+          case 'auth/network-request-failed':
+            errorMessage = 'Error de conexión. Verifica tu conexión a internet';
             break;
           default:
-            if (error.message.includes('ADMIN_ONLY_OPERATION')) {
-              errorMessage = 'Solo los administradores pueden crear usuarios';
-            } else {
-              errorMessage = `Error: ${error.message}`;
-            }
+            errorMessage = `Error: ${error.message}`;
         }
       }
 
@@ -154,14 +120,33 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserMo
           </div>
           <div className="grid gap-2">
             <Label htmlFor="password">Contraseña</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="********"
-              required
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="********"
+                required
+                className="pr-10"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="sr-only">
+                  {showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                </span>
+              </Button>
+            </div>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="displayName">Nombre</Label>
@@ -176,15 +161,14 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserMo
           </div>
           <div className="grid gap-2">
             <Label htmlFor="role">Rol</Label>
-            <Select value={role} onValueChange={setRole}>
+            <Select value={role} onValueChange={(value: UserRole) => setRole(value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar rol" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="admin">Administrador</SelectItem>
                 <SelectItem value="veterinario">Veterinario</SelectItem>
-                <SelectItem value="recepcionista">Recepcionista</SelectItem>
-                <SelectItem value="usuario">Usuario</SelectItem>
+                <SelectItem value="secretaria">Secretaria</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,24 +11,120 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth';
 import { MascotaForm } from './MascotaForm';
 import { ConsultaForm } from './ConsultaForm';
-import { Mascota, Dueno, MascotaInput, ConsultaFormData } from '@/types';
+import { DuenoForm } from './DuenoForm';
+import { Patient, Dueno, MascotaInput, ConsultaFormData, Appointment } from '@/types';
 import { toast } from '@/components/ui/use-toast';
 
 interface NuevaConsultaModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConsultaCreated: () => void;
+  selectedAppointment?: Appointment | null;
 }
 
-export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated }: NuevaConsultaModalProps) {
+export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated, selectedAppointment }: NuevaConsultaModalProps) {
   const [rut, setRut] = useState('');
   const [duenoData, setDuenoData] = useState<Dueno | null>(null);
-  const [mascotaData, setMascotaData] = useState<Mascota | null>(null);
-  const [mascotasDueno, setMascotasDueno] = useState<Mascota[]>([]);
+  const [mascotaData, setMascotaData] = useState<Patient | null>(null);
+  const [mascotasDueno, setMascotasDueno] = useState<Patient[]>([]);
   const [mostrarFormMascota, setMostrarFormMascota] = useState(false);
+  const [mostrarFormDueno, setMostrarFormDueno] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+
+  // Efecto para pre-llenar datos cuando se selecciona una cita agendada
+  useEffect(() => {
+    if (selectedAppointment && isOpen) {
+      // Si la cita tiene ownerId y patientId, cargar automáticamente
+      if (selectedAppointment.ownerId && selectedAppointment.patientId) {
+        const buscarDuenoPorCita = async () => {
+          try {
+            setIsLoading(true);
+            setError(null);
+            
+            const duenosRef = collection(db, 'duenos');
+            const q = query(duenosRef, where('__name__', '==', selectedAppointment.ownerId));
+            const querySnapshot = await getDocs(q);
+            
+            if (!querySnapshot.empty) {
+              const duenoDoc = querySnapshot.docs[0];
+              const dueno: Dueno = {
+                id: duenoDoc.id,
+                nombre: duenoDoc.data().nombre,
+                apellido: duenoDoc.data().apellido,
+                rut: duenoDoc.data().rut,
+                telefono: duenoDoc.data().telefono,
+                email: duenoDoc.data().email,
+                direccion: duenoDoc.data().direccion
+              };
+              setDuenoData(dueno);
+              setRut(dueno.rut);
+              
+              // Buscar la mascota específica
+              const mascotasRef = collection(db, `duenos/${duenoDoc.id}/mascotas`);
+              const mascotaQuery = query(mascotasRef, where('__name__', '==', selectedAppointment.patientId));
+              const mascotaSnapshot = await getDocs(mascotaQuery);
+              
+              if (!mascotaSnapshot.empty) {
+                const mascotaDoc = mascotaSnapshot.docs[0];
+                const mascotaData = mascotaDoc.data();
+                const mascota: Patient = {
+                  id: mascotaDoc.id,
+                  nombre: mascotaData.nombre,
+                  especie: mascotaData.especie,
+                  edad: mascotaData.edad,
+                  duenoId: duenoDoc.id,
+                  dueno,
+                  raza: mascotaData.raza,
+                  sexo: mascotaData.sexo,
+                  color: mascotaData.color,
+                  observaciones: mascotaData.observaciones,
+                  peso: mascotaData.peso,
+                  fechaNacimiento: mascotaData.fechaNacimiento
+                };
+                setMascotaData(mascota);
+                
+                // Cargar todas las mascotas del dueño
+                const todasMascotasSnapshot = await getDocs(mascotasRef);
+                const mascotas = todasMascotasSnapshot.docs.map(doc => {
+                  const data = doc.data();
+                  return {
+                    id: doc.id,
+                    nombre: data.nombre,
+                    especie: data.especie,
+                    edad: data.edad,
+                    duenoId: duenoDoc.id,
+                    dueno,
+                    raza: data.raza,
+                    sexo: data.sexo,
+                    color: data.color,
+                    observaciones: data.observaciones,
+                    peso: data.peso,
+                    fechaNacimiento: data.fechaNacimiento
+                  } as Patient;
+                });
+                setMascotasDueno(mascotas);
+              }
+            }
+          } catch (error) {
+            console.error('Error al cargar datos de la cita:', error);
+            setError('Error al cargar los datos de la cita seleccionada');
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        
+        buscarDuenoPorCita();
+      } else {
+        // Si la cita no tiene ownerId y patientId, mostrar mensaje para buscar manualmente
+        setError('Esta cita no tiene paciente asignado. Por favor, busca el dueño para continuar.');
+        setDuenoData(null);
+        setMascotaData(null);
+        setMascotasDueno([]);
+      }
+    }
+  }, [selectedAppointment, isOpen]);
 
   const handleBuscarDueno = async () => {
     if (!rut) {
@@ -41,6 +137,7 @@ export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated }: Nueva
     setDuenoData(null);
     setMascotaData(null);
     setMascotasDueno([]);
+    setMostrarFormDueno(false);
 
     try {
       const duenosRef = collection(db, 'duenos');
@@ -48,7 +145,8 @@ export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated }: Nueva
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        setError('No se encontró ningún dueño con ese RUT');
+        setError('No se encontró ningún dueño con ese RUT. ¿Deseas crear uno nuevo?');
+        setMostrarFormDueno(true);
         return;
       }
 
@@ -56,6 +154,7 @@ export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated }: Nueva
       const dueno: Dueno = {
         id: duenoDoc.id,
         nombre: duenoDoc.data().nombre,
+        apellido: duenoDoc.data().apellido,
         rut: duenoDoc.data().rut,
         telefono: duenoDoc.data().telefono,
         email: duenoDoc.data().email,
@@ -72,12 +171,48 @@ export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated }: Nueva
         duenoId: duenoDoc.id,
         dueno,
         ...doc.data()
-      } as Mascota));
+      } as Patient));
       
       setMascotasDueno(mascotas);
     } catch (error) {
       console.error('Error al buscar dueño:', error);
       setError('Error al buscar el dueño');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDuenoCreated = async (duenoInput: Omit<Dueno, 'id'>) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Crear el dueño en Firestore
+      const duenosRef = collection(db, 'duenos');
+      const duenoDoc = await addDoc(duenosRef, duenoInput);
+
+      const nuevoDueno: Dueno = {
+        ...duenoInput,
+        id: duenoDoc.id
+      };
+
+      setDuenoData(nuevoDueno);
+      setMascotasDueno([]);
+      setMostrarFormDueno(false);
+      setRut(duenoInput.rut);
+
+      toast({
+        title: "Dueño creado",
+        description: "El dueño se ha creado exitosamente",
+      });
+    } catch (error) {
+      console.error('Error al crear dueño:', error);
+      setError('Error al crear el dueño');
+      toast({
+        title: "Error",
+        description: "No se pudo crear el dueño",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +235,7 @@ export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated }: Nueva
       const mascotasRef = collection(db, `duenos/${duenoData.id}/mascotas`);
       const mascotaDoc = await addDoc(mascotasRef, mascotaInput);
 
-      const nuevaMascota: Mascota = {
+      const nuevaMascota: Patient = {
         ...mascotaInput,
         id: mascotaDoc.id,
         duenoId: duenoData.id,
@@ -122,15 +257,43 @@ export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated }: Nueva
     try {
       setIsLoading(true);
       const consultaRef = collection(db, `duenos/${duenoData?.id}/mascotas/${mascotaData?.id}/consultas`);
-      await addDoc(consultaRef, {
+      
+      // Crear la consulta con estado "Pendiente" por defecto
+      const consultaData = {
         ...data,
         veterinarioId: user?.uid,
         fecha: new Date(),
+        estado: 'Pendiente' as const,
         proximaCita: data.proximaCita ? new Date(data.proximaCita) : null
-      });
+      };
+      
+      await addDoc(consultaRef, consultaData);
+      
+      // Si hay una cita agendada seleccionada, actualizar su estado y datos
+      if (selectedAppointment) {
+        try {
+          const { updateAppointment } = await import('@/lib/firestore');
+          
+          // Actualizar la cita con los datos correctos del dueño y mascota
+          const updateData: Partial<Appointment> = {
+            status: 'Completada',
+            ownerId: duenoData?.id || '',
+            patientId: mascotaData?.id || '',
+            patientName: mascotaData?.nombre || '',
+            ownerName: duenoData ? `${duenoData.nombre} ${duenoData.apellido}` : '',
+            veterinarian: user?.email || 'Pendiente'
+          };
+          
+          await updateAppointment(selectedAppointment.id, updateData);
+          console.log('Cita agendada actualizada:', selectedAppointment.id, updateData);
+        } catch (error) {
+          console.error('Error al actualizar estado de la cita:', error);
+        }
+      }
+      
       toast({
         title: "Consulta creada",
-        description: "La consulta se ha creado correctamente",
+        description: "La consulta se ha creado correctamente como pendiente",
       });
       onClose();
       onConsultaCreated();
@@ -150,38 +313,112 @@ export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated }: Nueva
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>Nueva Consulta</DialogTitle>
+          <DialogTitle>
+            {selectedAppointment 
+              ? `Nueva Consulta - ${selectedAppointment.patientName} (${selectedAppointment.time})`
+              : 'Nueva Consulta'
+            }
+          </DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[calc(90vh-120px)]">
           <div className="space-y-4 pr-4">
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Label htmlFor="rut">RUT del Dueño</Label>
-                <Input
-                  id="rut"
-                  value={rut}
-                  onChange={(e) => setRut(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ingrese el RUT del dueño"
-                />
+            {selectedAppointment && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-green-800 mb-2">Cita Agendada Seleccionada:</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-green-700">Paciente:</span>
+                    <p className="text-green-800">{selectedAppointment.patientName}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-green-700">Dueño:</span>
+                    <p className="text-green-800">{selectedAppointment.ownerName}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-green-700">Fecha y Hora:</span>
+                    <p className="text-green-800">{selectedAppointment.date} a las {selectedAppointment.time}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-green-700">Tipo:</span>
+                    <p className="text-green-800">{selectedAppointment.type}</p>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-end">
-                <Button 
-                  onClick={handleBuscarDueno} 
-                  disabled={isLoading}
-                  className="min-w-[100px]"
-                >
-                  {isLoading ? 'Buscando...' : 'Buscar'}
-                </Button>
-              </div>
-            </div>
-
-            {error && (
-              <div className="text-red-500 text-sm">{error}</div>
             )}
 
-            {duenoData && !mascotaData && !mostrarFormMascota && (
+            {!mostrarFormDueno && !selectedAppointment && (
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label htmlFor="rut">RUT del Dueño</Label>
+                  <Input
+                    id="rut"
+                    value={rut}
+                    onChange={(e) => setRut(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ingrese el RUT del dueño"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button 
+                    onClick={handleBuscarDueno} 
+                    disabled={isLoading}
+                    className="min-w-[100px]"
+                  >
+                    {isLoading ? 'Buscando...' : 'Buscar'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {!mostrarFormDueno && selectedAppointment && !duenoData && (
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label htmlFor="rut">RUT del Dueño</Label>
+                  <Input
+                    id="rut"
+                    value={rut}
+                    onChange={(e) => setRut(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ingrese el RUT del dueño"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button 
+                    onClick={handleBuscarDueno} 
+                    disabled={isLoading}
+                    className="min-w-[100px]"
+                  >
+                    {isLoading ? 'Buscando...' : 'Buscar'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-yellow-800 text-sm">{error}</p>
+                {selectedAppointment && !duenoData && (
+                  <p className="text-yellow-700 text-sm mt-2">
+                    Busca el dueño por RUT para asignar el paciente a esta cita.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {mostrarFormDueno && (
+              <div className="space-y-4">
+                <DuenoForm 
+                  onSubmit={handleDuenoCreated}
+                  onCancel={() => {
+                    setMostrarFormDueno(false);
+                    setError(null);
+                  }}
+                />
+              </div>
+            )}
+
+            {duenoData && !mascotaData && !mostrarFormMascota && !mostrarFormDueno && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-semibold">Mascotas de {duenoData.nombre}</h3>
@@ -223,19 +460,37 @@ export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated }: Nueva
               </div>
             )}
 
-            {duenoData && mostrarFormMascota && (
-              <MascotaForm 
-                duenoId={duenoData.id}
-                onMascotaCreated={handleMascotaCreated}
-                onCancel={() => setMostrarFormMascota(false)}
-              />
+            {mostrarFormMascota && duenoData && (
+              <div className="space-y-4">
+                <MascotaForm 
+                  duenoId={duenoData.id}
+                  onMascotaCreated={handleMascotaCreated}
+                  onCancel={() => setMostrarFormMascota(false)}
+                />
+              </div>
             )}
 
-            {mascotaData && (
-              <ConsultaForm 
-                mascota={mascotaData}
-                onConsultaCreated={handleSubmit}
-              />
+            {mascotaData && duenoData && (
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-blue-800 mb-2">Consulta para:</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-blue-700">Dueño:</span>
+                      <p className="text-blue-800">{duenoData.nombre} ({duenoData.rut})</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-blue-700">Mascota:</span>
+                      <p className="text-blue-800">{mascotaData.nombre} - {mascotaData.especie}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <ConsultaForm 
+                  mascota={mascotaData}
+                  onConsultaCreated={handleSubmit}
+                />
+              </div>
             )}
           </div>
         </ScrollArea>

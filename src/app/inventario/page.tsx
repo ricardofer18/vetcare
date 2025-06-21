@@ -1,17 +1,21 @@
 "use client";
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import InventoryTable from '../../components/InventoryTable';
 import ProductFormModal from '../../components/ProductFormModal';
+import { ProductDetailsModal } from '../../components/ProductDetailsModal';
 import { 
   getInventoryItems, 
   addInventoryItem, 
   updateInventoryItem, 
-  deleteInventoryItem,
-  InventoryItem
+  deleteInventoryItem
 } from '../../lib/firestore';
+import { InventoryItem } from '@/types';
 import { PlusCircle } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { DisabledButton } from '@/components/RoleGuard';
+import { Header } from '@/components/Header';
 
 // Iconos SVG temporales (ejemplos)
 const MedicationIcon = (
@@ -53,7 +57,9 @@ export default function InventarioPage() {
   const itemsPerPage = 7;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [productToEdit, setProductToEdit] = useState<InventoryItem | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<InventoryItem | null>(null);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -68,7 +74,7 @@ export default function InventarioPage() {
     }
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
@@ -80,6 +86,16 @@ export default function InventarioPage() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setProductToEdit(null);
+  };
+
+  const handleViewProduct = (product: InventoryItem) => {
+    setSelectedProduct(product);
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleCloseDetailsModal = () => {
+    setIsDetailsModalOpen(false);
+    setSelectedProduct(null);
   };
 
   const handleSaveProduct = async (productData: Omit<InventoryItem, 'id'> | InventoryItem) => {
@@ -127,56 +143,99 @@ export default function InventarioPage() {
         onSave={handleSaveProduct}
         productToEdit={productToEdit}
       />
-      <div className="flex-1 overflow-y-auto">
-        <div className="container mx-auto py-6 px-4">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold">Inventario</h2>
-            <Button onClick={() => handleOpenModal()}>
-              <PlusCircle className="w-5 h-5 mr-2" />
-              Agregar Producto
-            </Button>
+      
+      {selectedProduct && (
+        <ProductDetailsModal
+          isOpen={isDetailsModalOpen}
+          onClose={handleCloseDetailsModal}
+          product={selectedProduct}
+        />
+      )}
+
+      <div className="flex h-screen bg-background">
+        <div className="flex flex-col flex-1">
+          <div className="flex justify-between items-center p-3 sm:p-4 lg:p-6 border-b">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">Inventario</h2>
+            <DisabledButton
+              resource="inventario"
+              action="create"
+              onClick={() => handleOpenModal()}
+              className="h-9 sm:h-11 px-3 sm:px-6 text-sm sm:text-base font-medium hover:scale-105 transition-all duration-200 cursor-pointer hover:shadow-lg"
+              tooltip="Agregar nuevo producto al inventario"
+            >
+              <PlusCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
+              <span className="hidden sm:inline">Agregar Producto</span>
+              <span className="sm:hidden">Agregar</span>
+            </DisabledButton>
           </div>
 
-          <div className="mb-6">
-            {loading && <p className="text-center text-muted-foreground py-8">Cargando inventario...</p>}
-            {error && <p className="text-center text-red-500 py-8">{error}</p>}
-            {!loading && !error && (
-              <InventoryTable 
-                products={currentProducts}
-                onEdit={handleOpenModal}
-                onDelete={handleDeleteProduct}
-              />
-            )}
-          </div>
-
-          {products.length > 0 && (
-            <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 sm:px-6 rounded-lg shadow">
-              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Mostrando <span className="font-medium">{displayedStart}</span> a <span className="font-medium">{displayedEnd}</span> de <span className="font-medium">{products.length}</span> productos
-                    </p>
-                  </div>
-                  <div>
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                      {[...Array(totalPages)].map((_, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handlePageChange(i + 1)}
-                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                            currentPage === i + 1 
-                              ? 'z-10 bg-blue-600 border-blue-600 text-white' 
-                              : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                          }`}
-                        >
-                          {i + 1}
-                        </button>
-                      ))}
-                    </nav>
-                  </div>
-              </div>
+          <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto bg-background">
+            <div className="mb-4 sm:mb-6">
+              {loading && (
+                <div className="flex justify-center items-center py-6 sm:py-8">
+                  <LoadingSpinner size="md" variant="primary" />
+                </div>
+              )}
+              {error && <p className="text-center text-destructive py-6 sm:py-8 text-sm sm:text-base">{error}</p>}
+              {!loading && !error && (
+                <InventoryTable 
+                  products={currentProducts}
+                  onEdit={handleOpenModal}
+                  onDelete={handleDeleteProduct}
+                  onView={handleViewProduct}
+                />
+              )}
             </div>
-          )}
+
+            {products.length > 0 && (
+              <div className="flex items-center justify-between border-t border-border bg-card px-3 sm:px-4 py-2 sm:py-3 sm:px-6 rounded-lg shadow">
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        Mostrando <span className="font-medium">{displayedStart}</span> a <span className="font-medium">{displayedEnd}</span> de <span className="font-medium">{products.length}</span> productos
+                      </p>
+                    </div>
+                    <div>
+                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        {[...Array(totalPages)].map((_, i) => (
+                          <button
+                            key={i}
+                            onClick={() => handlePageChange(i + 1)}
+                            className={`relative inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 border text-xs sm:text-sm font-medium ${
+                              currentPage === i + 1 
+                                ? 'z-10 bg-primary border-primary text-primary-foreground' 
+                                : 'border-input text-foreground hover:bg-accent'
+                            }`}
+                          >
+                            {i + 1}
+                          </button>
+                        ))}
+                      </nav>
+                    </div>
+                </div>
+                {/* Paginación móvil */}
+                <div className="flex-1 flex justify-between sm:hidden">
+                  <button 
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage <= 1}
+                    className="relative inline-flex items-center px-3 py-1.5 border border-input text-xs font-medium rounded-md text-foreground bg-background hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Anterior
+                  </button>
+                  <span className="text-xs text-muted-foreground self-center">
+                    {currentPage} de {totalPages}
+                  </span>
+                  <button 
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages}
+                    className="relative inline-flex items-center px-3 py-1.5 border border-input text-xs font-medium rounded-md text-foreground bg-background hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            )}
+          </main>
         </div>
       </div>
     </>

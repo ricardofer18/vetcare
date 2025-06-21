@@ -12,68 +12,14 @@ import {
   Timestamp,
   DocumentData,
   limit,
-  collectionGroup
+  collectionGroup,
+  setDoc,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from './firebase';
-
-// Tipos de datos
-export interface Patient {
-  id: string;
-  nombre: string;
-  imagen: string;
-  codigo: string;
-  especie: string;
-  edad: string;
-  owner: string;
-  veterinario: string;
-  ultimaAtencion: string;
-  estado: 'Activo' | 'En seguimiento' | 'Dado de alta';
-  raza?: string;
-  sexo?: string;
-  ownerId?: string;
-  ownerDetails?: Owner;
-}
-
-export interface Appointment {
-  id: string;
-  patientId: string;
-  patientName: string;
-  ownerId: string;
-  ownerName: string;
-  date: string;
-  time: string;
-  type: 'Consulta' | 'Cirugía' | 'Vacunación' | 'Control' | 'Otro';
-  status: 'Programada' | 'Confirmada' | 'Completada' | 'Cancelada';
-  notes?: string;
-  veterinarian: string;
-  cost?: number;
-  paymentStatus?: 'Pendiente' | 'Pagado' | 'Parcial';
-}
-
-export interface InventoryItem {
-  id: string;
-  name: string;
-  description: string;
-  quantity: number;
-  unit: string;
-  price: number;
-  category: string;
-  supplier: string;
-  lastRestock: string;
-  minQuantity: number;
-  image?: string;
-}
-
-// Interfaces
-export interface Owner {
-  id: string;
-  nombre: string;
-  apellido: string;
-  rut: string;
-  email: string;
-  telefono: string;
-  direccion: string;
-}
+import { Patient, Dueno as Owner, Appointment, InventoryItem, UserRole, User, Permission, RolePermissions, ROLE_PERMISSIONS } from '../types';
+import { signOut } from 'firebase/auth';
+import { auth } from './firebase';
 
 // Funciones para Pacientes
 
@@ -118,10 +64,12 @@ export const appointmentsCollection = collection(db, 'appointments');
 
 export const getAppointments = async (): Promise<Appointment[]> => {
   const querySnapshot = await getDocs(appointmentsCollection);
-  return querySnapshot.docs.map(doc => ({
+  const appointments = querySnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data()
   } as Appointment));
+  console.log('Citas recuperadas de Firestore:', appointments);
+  return appointments;
 };
 
 export const getAppointment = async (id: string): Promise<Appointment | null> => {
@@ -134,7 +82,9 @@ export const getAppointment = async (id: string): Promise<Appointment | null> =>
 };
 
 export const addAppointment = async (appointment: Omit<Appointment, 'id'>): Promise<string> => {
+  console.log('Guardando cita en Firestore:', appointment);
   const docRef = await addDoc(appointmentsCollection, appointment);
+  console.log('Cita guardada con ID:', docRef.id);
   return docRef.id;
 };
 
@@ -357,130 +307,101 @@ export const getPatientsByOwnerId = async (ownerId: string): Promise<Patient[]> 
 
 // Función para inicializar datos de pacientes de ejemplo
 export const initializeSamplePatients = async (): Promise<void> => {
-  try {
-    const allOwners = await getOwners();
-    if (allOwners.length === 0) {
-      console.log('[initializeSamplePatients] No owners found. Skipping patient initialization.');
-      return;
-    }
-    console.log(`[initializeSamplePatients] Found ${allOwners.length} owners. Checking if patients exist.`);
+  const ownersRef = collection(db, 'duenos');
+  const ownersSnapshot = await getDocs(ownersRef);
 
-    const allPatients = await getPatients();
-    if (allPatients.length > 0) {
-      console.log('[initializeSamplePatients] Patients already exist, skipping initialization.');
-      return;
-    }
+  if (ownersSnapshot.empty) {
+    console.log("No hay dueños, creando uno de ejemplo...");
+    const newOwnerData = {
+      nombre: 'Ricardo',
+      apellido: 'Saavedra',
+      rut: '21.758.535-k',
+      email: 'ricardo@example.com',
+      telefono: '+56987654321',
+      direccion: 'Calle Falsa 123, Santiago'
+    };
+    const ownerDocRef = await addDoc(ownersRef, newOwnerData);
     
-    console.log('[initializeSamplePatients] No patients found. Creating sample patients...');
-
     const samplePatients = [
-      {
-        nombre: 'Max',
-        imagen: '',
-        codigo: 'PET001',
-        especie: 'Perro',
-        raza: 'Golden Retriever',
-        edad: '3 años',
-        ownerId: allOwners[0].id, // Asignar al primer dueño
-        owner: `${allOwners[0].nombre} ${allOwners[0].apellido}`,
-        veterinario: 'Dra. Ana',
-        ultimaAtencion: '2024-05-10',
-        estado: 'Activo' as const,
+      { 
+        nombre: 'elvistek', 
+        especie: 'Perro', 
+        raza: 'Pug', 
+        edad: 12, 
+        sexo: 'Macho',
+        duenoId: ownerDocRef.id // <- Campo requerido añadido
       },
-      {
-        nombre: 'Luna',
-        imagen: '',
-        codigo: 'PET002',
-        especie: 'Gato',
-        raza: 'Siamés',
-        edad: '1 año',
-        ownerId: allOwners[0].id, // Asignar al primer dueño
-        owner: `${allOwners[0].nombre} ${allOwners[0].apellido}`,
-        veterinario: 'Dr. Carlos',
-        ultimaAtencion: '2024-05-20',
-        estado: 'En seguimiento' as const,
-      },
+      // ... más pacientes de ejemplo si es necesario
     ];
 
-    if (allOwners.length > 1) {
-      samplePatients.push({
-        nombre: 'Rocky',
-        imagen: '',
-        codigo: 'PET003',
-        especie: 'Perro',
-        raza: 'Bulldog',
-        edad: '5 años',
-        ownerId: allOwners[1].id, // Asignar al segundo dueño
-        owner: `${allOwners[1].nombre} ${allOwners[1].apellido}`,
-        veterinario: 'Dra. Ana',
-        ultimaAtencion: '2024-04-12',
-        estado: 'Activo' as const,
-      });
+    for (const patientData of samplePatients) {
+      const petsSubcollectionRef = collection(db, 'duenos', ownerDocRef.id, 'mascotas');
+      await addDoc(petsSubcollectionRef, patientData);
     }
-
-    for (const patient of samplePatients) {
-      if (patient.ownerId) {
-        await addPatient(patient.ownerId, patient);
-      }
-    }
-
-    console.log('[initializeSamplePatients] Sample patients initialized successfully.');
-  } catch (error) {
-    console.error('[initializeSamplePatients] Error initializing sample patients:', error);
+    console.log("Dueño y mascotas de ejemplo creados.");
   }
 };
 
-// Función para buscar pacientes por nombre o nombre del dueño
+// Función para buscar pacientes
 export const searchPatients = async (searchTerm: string): Promise<Patient[]> => {
   try {
-    const patientsRef = collection(db, 'patients');
-    const q = query(
-      patientsRef,
-      where('name', '>=', searchTerm),
-      where('name', '<=', searchTerm + '\uf8ff'),
-      limit(10)
-    );
-    const querySnapshot = await getDocs(q);
     const patients: Patient[] = [];
     
-    for (const docSnapshot of querySnapshot.docs) {
-      const patientData = docSnapshot.data() as DocumentData;
-      const ownerRef = doc(db, 'duenos', patientData.ownerId);
-      const ownerDoc = await getDoc(ownerRef);
-      const ownerData = ownerDoc.data() as DocumentData;
+    // Buscar en todos los dueños
+    const duenosSnapshot = await getDocs(collection(db, 'duenos'));
+    
+    for (const duenoDoc of duenosSnapshot.docs) {
+      const duenoData = duenoDoc.data() as Owner;
       
-      if (ownerData) {
-        patients.push({
-          id: docSnapshot.id,
-          nombre: patientData.name,
-          imagen: patientData.image || '',
-          codigo: patientData.code || '',
-          especie: patientData.species,
-          edad: patientData.age,
-          owner: patientData.owner,
-          veterinario: patientData.veterinarian || '',
-          ultimaAtencion: patientData.lastAttention || '',
-          estado: patientData.status || 'Activo',
-          raza: patientData.breed,
-          sexo: patientData.gender,
-          ownerId: patientData.ownerId,
-          ownerDetails: {
-            id: ownerDoc.id,
-            nombre: ownerData.nombre as string,
-            apellido: ownerData.apellido as string,
-            rut: ownerData.rut as string,
-            email: ownerData.email as string,
-            telefono: ownerData.telefono as string,
-            direccion: ownerData.direccion as string,
+      // Buscar mascotas del dueño
+      const mascotasRef = collection(db, `duenos/${duenoDoc.id}/mascotas`);
+      const mascotasSnapshot = await getDocs(mascotasRef);
+      
+      mascotasSnapshot.forEach(mascotaDoc => {
+        const mascotaData = mascotaDoc.data();
+        const patient: Patient = {
+          id: mascotaDoc.id,
+          nombre: mascotaData.nombre,
+          imagen: mascotaData.imagen || '',
+          codigo: mascotaData.codigo || '',
+          especie: mascotaData.especie,
+          edad: mascotaData.edad,
+          owner: duenoData.nombre,
+          veterinario: mascotaData.veterinario || '',
+          ultimaAtencion: mascotaData.ultimaAtencion || '',
+          estado: mascotaData.estado || 'Activo',
+          raza: mascotaData.raza,
+          sexo: mascotaData.sexo,
+          ownerId: duenoDoc.id,
+          duenoId: duenoDoc.id,
+          dueno: {
+            id: duenoDoc.id,
+            nombre: duenoData.nombre,
+            apellido: duenoData.apellido,
+            rut: duenoData.rut,
+            email: duenoData.email,
+            telefono: duenoData.telefono,
+            direccion: duenoData.direccion
           }
-        });
-      }
+        };
+        
+        // Filtrar por término de búsqueda
+        const searchLower = searchTerm.toLowerCase();
+        if (
+          patient.nombre.toLowerCase().includes(searchLower) ||
+          patient.especie.toLowerCase().includes(searchLower) ||
+          patient.dueno?.nombre.toLowerCase().includes(searchLower) ||
+          patient.dueno?.apellido.toLowerCase().includes(searchLower)
+        ) {
+          patients.push(patient);
+        }
+      });
     }
     
-    return patients;
+    return patients.slice(0, 10); // Limitar a 10 resultados
   } catch (error) {
-    console.error('Error searching patients:', error);
-    throw error;
+    console.error('Error buscando pacientes:', error);
+    return [];
   }
 };
 
@@ -515,4 +436,189 @@ export const searchOwners = async (searchTerm: string): Promise<Owner[]> => {
     console.error('Error searching owners:', error);
     throw error;
   }
-}; 
+};
+
+// Notas rápidas para el dashboard
+export const quickNotesCollection = collection(db, 'quickNotes');
+
+export const getQuickNotes = async (): Promise<import('../types').QuickNote[]> => {
+  const querySnapshot = await getDocs(quickNotesCollection);
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as import('../types').QuickNote));
+};
+
+export const addQuickNote = async (note: Omit<import('../types').QuickNote, 'id' | 'createdAt'> & { createdAt?: string }): Promise<string> => {
+  const noteData = {
+    ...note,
+    createdAt: note.createdAt || new Date().toISOString(),
+  };
+  const docRef = await addDoc(quickNotesCollection, noteData);
+  return docRef.id;
+};
+
+export const deleteQuickNote = async (id: string): Promise<void> => {
+  const docRef = doc(quickNotesCollection, id);
+  await deleteDoc(docRef);
+};
+
+// Funciones para manejo de roles de usuario
+export const createUserWithRole = async (
+  uid: string,
+  email: string,
+  displayName: string,
+  role: UserRole
+): Promise<void> => {
+  try {
+    const userRef = doc(db, 'usuarios', uid);
+    await setDoc(userRef, {
+      uid,
+      email,
+      displayName,
+      role,
+      active: true,
+      createdAt: new Date(),
+      lastLogin: new Date()
+    });
+  } catch (error) {
+    console.error('Error al crear usuario con rol:', error);
+    throw error;
+  }
+};
+
+export const getUserRole = async (uid: string): Promise<UserRole | null> => {
+  try {
+    const userRef = doc(db, 'usuarios', uid);
+    const userDoc = await getDoc(userRef);
+    
+    console.log(`[firestore.ts] Buscando rol para UID: ${uid}. Documento encontrado: ${userDoc.exists()}`);
+
+    if (userDoc.exists()) {
+      const role = userDoc.data().role as UserRole;
+      console.log(`[firestore.ts] Rol encontrado: ${role}`);
+      return role;
+    }
+    
+    console.log(`[firestore.ts] No se encontró un documento para el UID: ${uid}`);
+    return null;
+  } catch (error) {
+    console.error('[firestore.ts] Error al obtener rol del usuario:', error);
+    return null;
+  }
+};
+
+export const updateUserRole = async (
+  uid: string,
+  newRole: UserRole
+): Promise<void> => {
+  try {
+    const userRef = doc(db, 'usuarios', uid);
+    await updateDoc(userRef, {
+      role: newRole,
+      updatedAt: new Date()
+    });
+  } catch (error) {
+    console.error('Error al actualizar rol del usuario:', error);
+    throw error;
+  }
+};
+
+export const getAllUsers = async (): Promise<User[]> => {
+  try {
+    const usersRef = collection(db, 'usuarios');
+    const usersSnapshot = await getDocs(usersRef);
+    
+    return usersSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as User[];
+  } catch (error) {
+    console.error('Error al obtener usuarios:', error);
+    throw error;
+  }
+};
+
+export const deactivateUser = async (uid: string): Promise<void> => {
+  try {
+    const userRef = doc(db, 'usuarios', uid);
+    await updateDoc(userRef, {
+      active: false,
+      updatedAt: new Date()
+    });
+  } catch (error) {
+    console.error('Error al desactivar usuario:', error);
+    throw error;
+  }
+};
+
+export const activateUser = async (uid: string): Promise<void> => {
+  try {
+    const userRef = doc(db, 'usuarios', uid);
+    await updateDoc(userRef, {
+      active: true,
+      updatedAt: new Date()
+    });
+  } catch (error) {
+    console.error('Error al activar usuario:', error);
+    throw error;
+  }
+};
+
+// --- Role Management ---
+
+export const getRolePermissions = async (role: UserRole): Promise<Permission[]> => {
+  const roleRef = doc(db, 'roles', role);
+  const roleSnap = await getDoc(roleRef);
+
+  if (roleSnap.exists()) {
+    const permissionsData = roleSnap.data().permissions;
+    if (Array.isArray(permissionsData)) {
+      return permissionsData as Permission[];
+    }
+  }
+  
+  console.warn(`Rol "${role}" no encontrado en Firestore. Usando permisos por defecto.`);
+  await setRolePermissions(role, ROLE_PERMISSIONS[role]);
+  return ROLE_PERMISSIONS[role];
+};
+
+export const setRolePermissions = async (role: UserRole, permissions: Permission[]): Promise<void> => {
+  const roleRef = doc(db, 'roles', role);
+  await setDoc(roleRef, { permissions });
+};
+
+export const getAllRolePermissions = async (): Promise<RolePermissions> => {
+    const rolesRef = collection(db, 'roles');
+    const rolesSnap = await getDocs(rolesRef);
+    let rolesInDb: string[] = [];
+
+    rolesSnap.forEach(doc => {
+      rolesInDb.push(doc.id);
+    });
+
+    const allRolesExist = ['admin', 'veterinario', 'secretaria'].every(r => rolesInDb.includes(r));
+
+    if (rolesSnap.empty || !allRolesExist) {
+        console.log("Algunos roles no se encontraron en Firestore. Inicializando con permisos por defecto.");
+        
+        await Promise.all([
+            setRolePermissions('admin', ROLE_PERMISSIONS.admin),
+            setRolePermissions('veterinario', ROLE_PERMISSIONS.veterinario),
+            setRolePermissions('secretaria', ROLE_PERMISSIONS.secretaria),
+        ]);
+        return ROLE_PERMISSIONS;
+    }
+
+    const allPermissions: RolePermissions = {
+        admin: [],
+        veterinario: [],
+        secretaria: [],
+    };
+
+    rolesSnap.forEach(doc => {
+        allPermissions[doc.id as UserRole] = doc.data().permissions;
+    });
+
+    return allPermissions;
+} 

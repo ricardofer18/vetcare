@@ -9,12 +9,12 @@ import { Header } from '../../components/Header';
 
 export default function HistorialClinicoPage() {
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="container mx-auto py-6 px-4">
+    <div className="flex h-screen bg-background">
+      <div className="flex flex-col flex-1">
         {/* Barra superior */}
         <Header title="Historial Clínico" />
 
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 p-6 overflow-y-auto bg-background">
           {/* Contenido específico de Historial Clínico */}
           <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Historial Clínico</h2>
           <p className="text-gray-700 dark:text-gray-300">Aquí irá el contenido del Historial Clínico.</p>

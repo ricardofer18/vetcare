@@ -7,14 +7,14 @@ export function ThemeToggle() {
   const { theme, setLightTheme, setDarkTheme } = useTheme()
 
   return (
-    <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'>
-      <h3 className='text-lg font-semibold text-gray-800 dark:text-white mb-4'>
+    <div className='bg-card rounded-lg shadow-lg border border-border p-6'>
+      <h3 className='text-lg font-semibold text-card-foreground mb-4'>
         Apariencia
       </h3>
 
       <div className='space-y-4'>
         <div className='flex items-center justify-between'>
-          <span className='text-gray-700 dark:text-gray-300'>
+          <span className='text-muted-foreground'>
             Tema de la aplicación
           </span>
         </div>
@@ -24,8 +24,8 @@ export function ThemeToggle() {
             onClick={setLightTheme}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
               theme === "light"
-                ? "bg-blue-500 text-white border-blue-500"
-                : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
             }`}
           >
             <Sun className='w-4 h-4' />
@@ -36,8 +36,8 @@ export function ThemeToggle() {
             onClick={setDarkTheme}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
               theme === "dark"
-                ? "bg-blue-500 text-white border-blue-500"
-                : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
             }`}
           >
             <Moon className='w-4 h-4' />
@@ -48,3 +48,4 @@ export function ThemeToggle() {
     </div>
   )
 }
+ 

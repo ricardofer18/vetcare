@@ -114,9 +114,9 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] bg-gray-800 border-gray-700">
+      <DialogContent className="max-w-2xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle className="text-white">
+          <DialogTitle>
             Editar Paciente - {paciente.nombre}
           </DialogTitle>
         </DialogHeader>
@@ -125,53 +125,49 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({
           <form onSubmit={handleSubmit} className="space-y-6 pr-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="nombre" className="text-gray-300">Nombre *</Label>
+                <Label htmlFor="nombre">Nombre *</Label>
                 <Input
                   id="nombre"
                   value={formData.nombre}
                   onChange={(e) => handleInputChange('nombre', e.target.value)}
-                  className="bg-gray-700 text-white border-gray-600"
                   required
                 />
               </div>
               
               <div>
-                <Label htmlFor="especie" className="text-gray-300">Especie *</Label>
+                <Label htmlFor="especie">Especie *</Label>
                 <Input
                   id="especie"
                   value={formData.especie}
                   onChange={(e) => handleInputChange('especie', e.target.value)}
-                  className="bg-gray-700 text-white border-gray-600"
                   required
                 />
               </div>
               
               <div>
-                <Label htmlFor="raza" className="text-gray-300">Raza *</Label>
+                <Label htmlFor="raza">Raza *</Label>
                 <Input
                   id="raza"
                   value={formData.raza}
                   onChange={(e) => handleInputChange('raza', e.target.value)}
-                  className="bg-gray-700 text-white border-gray-600"
                   required
                 />
               </div>
               
               <div>
-                <Label htmlFor="edad" className="text-gray-300">Edad (años) *</Label>
+                <Label htmlFor="edad">Edad (años) *</Label>
                 <Input
                   id="edad"
                   type="number"
                   min="0"
                   value={formData.edad}
                   onChange={(e) => handleInputChange('edad', Number(e.target.value))}
-                  className="bg-gray-700 text-white border-gray-600"
                   required
                 />
               </div>
               
               <div>
-                <Label htmlFor="peso" className="text-gray-300">Peso (kg)</Label>
+                <Label htmlFor="peso">Peso (kg)</Label>
                 <Input
                   id="peso"
                   type="number"
@@ -179,28 +175,26 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({
                   min="0"
                   value={formData.peso}
                   onChange={(e) => handleInputChange('peso', Number(e.target.value))}
-                  className="bg-gray-700 text-white border-gray-600"
                 />
               </div>
               
               <div>
-                <Label htmlFor="fechaNacimiento" className="text-gray-300">Fecha de Nacimiento</Label>
+                <Label htmlFor="fechaNacimiento">Fecha de Nacimiento</Label>
                 <Input
                   id="fechaNacimiento"
                   type="date"
                   value={formData.fechaNacimiento}
                   onChange={(e) => handleInputChange('fechaNacimiento', e.target.value)}
-                  className="bg-gray-700 text-white border-gray-600"
                 />
               </div>
               
               <div>
-                <Label htmlFor="sexo" className="text-gray-300">Sexo</Label>
+                <Label htmlFor="sexo">Sexo</Label>
                 <Select value={formData.sexo} onValueChange={(value) => handleInputChange('sexo', value as 'Macho' | 'Hembra')}>
-                  <SelectTrigger className="bg-gray-700 text-white border-gray-600">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-gray-600">
+                  <SelectContent>
                     <SelectItem value="Macho">Macho</SelectItem>
                     <SelectItem value="Hembra">Hembra</SelectItem>
                   </SelectContent>
@@ -208,18 +202,16 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({
               </div>
               
               <div>
-                <Label htmlFor="color" className="text-gray-300">Color</Label>
+                <Label htmlFor="color">Color</Label>
                 <Input
                   id="color"
                   value={formData.color}
                   onChange={(e) => handleInputChange('color', e.target.value)}
-                  className="bg-gray-700 text-white border-gray-600"
                 />
               </div>
             </div>
             
             <div>
-              <Label htmlFor="observaciones" className="text-gray-300">Observaciones</Label>
               <AITextarea
                 value={formData.observaciones}
                 onChange={(value) => handleInputChange('observaciones', value)}
@@ -234,7 +226,6 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({
                   peso: paciente.peso,
                   sexo: paciente.sexo,
                 }}
-                className="bg-gray-700 text-white border-gray-600"
                 minHeight="min-h-[100px]"
               />
             </div>
@@ -244,7 +235,6 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({
                 type="button"
                 variant="outline"
                 onClick={onClose}
-                className="border-gray-600 text-gray-300"
                 disabled={isLoading}
               >
                 <X className="w-4 h-4 mr-2" />
@@ -253,7 +243,6 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="bg-blue-600 hover:bg-blue-700"
               >
                 <Save className="w-4 h-4 mr-2" />
                 {isLoading ? 'Guardando...' : 'Guardar Cambios'}

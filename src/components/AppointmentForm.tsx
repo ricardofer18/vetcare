@@ -1,205 +1,146 @@
-import React, { useState, useEffect } from 'react';
-import { searchPatients, searchOwners, Patient, Owner, addOwner, addPatient } from '../lib/firestore';
+"use client";
+
+import React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/components/ui/use-toast';
+import { addAppointment } from '@/lib/firestore';
+import { Appointment } from '@/types';
+import { CalendarIcon, Clock, Stethoscope } from 'lucide-react';
+
+// Esquema de validación con Zod
+const appointmentSchema = z.object({
+  time: z.string().min(1, "La hora es obligatoria."),
+  type: z.enum(['Consulta', 'Cirugía', 'Vacunación', 'Control', 'Otro']),
+  notes: z.string().optional(),
+});
+
+type AppointmentFormData = z.infer<typeof appointmentSchema>;
 
 interface AppointmentFormProps {
-  selectedDate: Date | null;
-  selectedEvent?: any;
+  selectedDate: Date;
   onClose: () => void;
-  onSave: (appointmentData: any) => void;
+  onSave: () => void;
 }
 
-const AppointmentForm: React.FC<AppointmentFormProps> = ({
-  selectedDate,
-  selectedEvent,
-  onClose,
-  onSave,
-}) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<Patient[]>([]);
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [selectedOwner, setSelectedOwner] = useState<Owner | null>(null);
-  const [tipoAtencion, setTipoAtencion] = useState('');
-  const [veterinario, setVeterinario] = useState('');
-  const [notas, setNotas] = useState('');
-  const [appointmentTime, setAppointmentTime] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [showNewPatientForm, setShowNewPatientForm] = useState(false);
-  const [newPatientData, setNewPatientData] = useState({
-    name: '',
-    species: '',
-    breed: '',
-    age: '',
-    gender: '',
-    ownerId: '',
-    ownerName: '',
-    ownerPhone: '',
-    ownerEmail: ''
+export default function AppointmentForm({ selectedDate, onClose, onSave }: AppointmentFormProps) {
+  const { toast } = useToast();
+
+  const form = useForm<AppointmentFormData>({
+    resolver: zodResolver(appointmentSchema),
+    defaultValues: {
+      time: '',
+      notes: '',
+    },
   });
 
-  // Datos de ejemplo para dropdowns
-  const tiposAtencion = ['Consulta', 'Cirugía', 'Vacunación', 'Control'];
-  const veterinarios = ['Dr. Carlos Mendoza', 'Dra. Laura', 'Dr. Andrés'];
-
-  useEffect(() => {
-    if (selectedEvent) {
-      // Cargar datos del evento seleccionado
-      setTipoAtencion(selectedEvent.tipoAtencion);
-      setVeterinario(selectedEvent.veterinarian);
-      setNotas(selectedEvent.notes || '');
-      setAppointmentTime(selectedEvent.start.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }));
-    }
-  }, [selectedEvent]);
-
-  useEffect(() => {
-    const searchPatientsAndOwners = async () => {
-      if (searchTerm.length < 3) {
-        setSearchResults([]);
-        return;
-      }
-
-      setIsSearching(true);
-      try {
-        const patients = await searchPatients(searchTerm);
-        setSearchResults(patients);
+  const onSubmit = async (data: AppointmentFormData) => {
+    try {
+      console.log('Datos del formulario:', data);
+      const newAppointment: Omit<Appointment, 'id'> = {
+        patientId: '', // Se asignará después
+        patientName: 'Pendiente', // Se asignará después
+        ownerId: '', // Se asignará después
+        ownerName: 'Pendiente', // Se asignará después
+        date: selectedDate.toISOString().split('T')[0],
+        time: data.time,
+        type: data.type,
+        status: 'Programada',
+        notes: data.notes,
+        veterinarian: 'Pendiente', // Se asignará después
+      };
+      console.log('Cita a guardar:', newAppointment);
+      await addAppointment(newAppointment);
+      toast({
+        title: "Hora Agendada",
+        description: `Se ha agendado la hora para el ${selectedDate.toLocaleDateString('es-ES')} a las ${data.time}. Ve a la sección de Consultas para asignar paciente y crear la consulta.`,
+      });
+      onSave();
+      form.reset();
       } catch (error) {
-        console.error('Error searching patients:', error);
-      } finally {
-        setIsSearching(false);
-      }
-    };
-
-    const timeoutId = setTimeout(searchPatientsAndOwners, 300);
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedPatient || !tipoAtencion || !veterinario || !appointmentTime || !selectedDate) {
-      alert('Por favor, completa todos los campos obligatorios.');
-      return;
+      console.error('Error al agendar cita:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo agendar la cita. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
     }
-
-    const appointmentData = {
-      date: selectedDate.toISOString().split('T')[0],
-      time: appointmentTime,
-      patientId: selectedPatient.id,
-      patientName: selectedPatient.name,
-      ownerId: selectedOwner?.id,
-      ownerName: selectedOwner?.name,
-      tipoAtencion,
-      veterinario,
-      notas,
-    };
-    onSave(appointmentData);
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-            {selectedEvent ? 'Editar Cita' : 'Nueva Cita'}
-          </h3>
-          <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl leading-none">
-            &times;
-          </button>
-        </div>
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CalendarIcon className="w-5 h-5" />
+            Agendar Nueva Cita
+          </DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <p className="text-sm text-muted-foreground">
+              Agendando para el: <span className="font-semibold text-foreground">{selectedDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+            </p>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" htmlFor="fecha">
-                Fecha:
-              </label>
-              <input
-                type="text"
-                id="fecha"
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 cursor-not-allowed"
-                value={selectedDate?.toLocaleDateString() || '--/--/----'}
-                disabled
-              />
-            </div>
-            <div>
-              <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" htmlFor="hora">
-                Hora:
-              </label>
-              <input
-                type="time"
-                id="hora"
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
-                value={appointmentTime}
-                onChange={(e) => setAppointmentTime(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+            <FormField control={form.control} name="time" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2"><Clock className="w-4 h-4" /> Hora</FormLabel>
+                <FormControl>
+                  <Input type="time" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}/>
 
-          <div className="mb-4">
-            <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" htmlFor="tipoAtencion">
-              Tipo de Atención:
-            </label>
-            <select
-              id="tipoAtencion"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
-              value={tipoAtencion}
-              onChange={(e) => setTipoAtencion(e.target.value)}
-              required
-            >
-              <option value="">Seleccione...</option>
-              {tiposAtencion.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
-            </select>
-          </div>
+            <FormField control={form.control} name="type" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Tipo de Atención</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un tipo..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Consulta">Consulta</SelectItem>
+                    <SelectItem value="Cirugía">Cirugía</SelectItem>
+                    <SelectItem value="Vacunación">Vacunación</SelectItem>
+                    <SelectItem value="Control">Control</SelectItem>
+                    <SelectItem value="Otro">Otro</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}/>
 
-          <div className="mb-4">
-            <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" htmlFor="veterinario">
-              Veterinario:
-            </label>
-            <select
-              id="veterinario"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
-              value={veterinario}
-              onChange={(e) => setVeterinario(e.target.value)}
-              required
-            >
-              <option value="">Seleccione...</option>
-              {veterinarios.map(vet => <option key={vet} value={vet}>{vet}</option>)}
-            </select>
-          </div>
+            <FormField control={form.control} name="notes" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Notas Adicionales</FormLabel>
+                <FormControl>
+                  <Textarea placeholder="Anotaciones importantes sobre la cita..." {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}/>
 
-          <div className="mb-6">
-            <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" htmlFor="notas">
-              Notas:
-            </label>
-            <textarea
-              id="notas"
-              rows={3}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
-              value={notas}
-              onChange={(e) => setNotas(e.target.value)}
-              placeholder="Ingrese notas o comentarios importantes..."
-            ></textarea>
-          </div>
-
-          <div className="flex items-center justify-end gap-4">
-            <button
-              type="button"
-              className="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-700 text-gray-800 dark:text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-              onClick={onClose}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-              disabled={!selectedPatient}
-            >
-              {selectedEvent ? 'Actualizar Cita' : 'Guardar Cita'}
-            </button>
-          </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Cancelar</Button>
+              </DialogClose>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Agendando..." : "Agendar Cita"}
+              </Button>
+            </DialogFooter>
         </form>
-      </div>
-    </div>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
-};
-
-export default AppointmentForm; 
+} 

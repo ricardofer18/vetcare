@@ -58,91 +58,86 @@ const OwnerDetailsModal: React.FC<OwnerDetailsModalProps> = ({ owner, isOpen, on
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] bg-gray-800 border-gray-700">
+      <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle className="text-white">
-            Detalles del Dueño - {owner.nombre}
+          <DialogTitle>
+            Detalles del Dueño - {owner.nombre} {owner.apellido}
           </DialogTitle>
         </DialogHeader>
         
         <ScrollArea className="max-h-[calc(90vh-140px)]">
           <div className="space-y-6 pr-4">
             {/* Información del dueño */}
-            <div className="bg-gray-700 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-white mb-3">Información Personal</h3>
+            <div className="bg-muted rounded-lg p-4">
+              <h3 className="text-lg font-semibold mb-3">Información Personal</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-gray-400">Nombre:</span>
-                  <p className="text-white">{owner.nombre}</p>
+                  <span className="text-muted-foreground">Nombre:</span>
+                  <p className="font-medium">{owner.nombre} {owner.apellido}</p>
                 </div>
                 <div>
-                  <span className="text-gray-400">RUT:</span>
-                  <p className="text-white">{owner.rut}</p>
+                  <span className="text-muted-foreground">RUT:</span>
+                  <p className="font-medium">{owner.rut}</p>
                 </div>
                 <div>
-                  <span className="text-gray-400">Teléfono:</span>
-                  <p className="text-white">{owner.telefono}</p>
+                  <span className="text-muted-foreground">Teléfono:</span>
+                  <p className="font-medium">{owner.telefono}</p>
                 </div>
                 <div>
-                  <span className="text-gray-400">Email:</span>
-                  <p className="text-white">{owner.email}</p>
+                  <span className="text-muted-foreground">Email:</span>
+                  <p className="font-medium">{owner.email}</p>
                 </div>
                 <div className="md:col-span-2">
-                  <span className="text-gray-400">Dirección:</span>
-                  <p className="text-white">{owner.direccion}</p>
+                  <span className="text-muted-foreground">Dirección:</span>
+                  <p className="font-medium">{owner.direccion}</p>
                 </div>
               </div>
             </div>
 
             {/* Lista de mascotas */}
-            {loading ? (
-              <div className="flex justify-center items-center h-32">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-              </div>
-            ) : error ? (
-              <div className="text-center py-8 text-red-500">
-                <p>{error}</p>
-              </div>
-            ) : pets.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <p>No hay mascotas registradas para este dueño</p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Las mascotas aparecerán aquí cuando se registren
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white">Mascotas ({pets.length})</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Mascotas</h3>
+              {pets.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {pets.map((pet) => (
-                    <div key={pet.id} className="bg-gray-700 rounded-lg p-4 border border-gray-600">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-white">{pet.nombre}</h4>
-                        <span className="text-xs text-gray-400">{pet.edad} años</span>
+                    <div key={pet.id} className="bg-card border border-border rounded-lg p-4">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                          <span className="text-primary-foreground font-semibold text-sm">
+                            {pet.nombre.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-card-foreground">{pet.nombre}</h4>
+                          <p className="text-sm text-muted-foreground">{pet.especie} • {pet.raza}</p>
+                        </div>
                       </div>
-                      <div className="space-y-1 text-sm">
-                        <p className="text-gray-300">
-                          <span className="text-gray-400">Especie:</span> {pet.especie}
-                        </p>
-                        <p className="text-gray-300">
-                          <span className="text-gray-400">Raza:</span> {pet.raza}
-                        </p>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Edad:</span>
+                          <span className="text-card-foreground">{pet.edad} años</span>
+                        </div>
                         {pet.sexo && (
-                          <p className="text-gray-300">
-                            <span className="text-gray-400">Sexo:</span> {pet.sexo}
-                          </p>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Sexo:</span>
+                            <span className="text-card-foreground">{pet.sexo}</span>
+                          </div>
                         )}
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No hay mascotas registradas para este dueño</p>
+                </div>
+              )}
+            </div>
           </div>
         </ScrollArea>
         
         <div className="flex justify-end pt-4">
-          <Button onClick={onClose} variant="outline" className="border-gray-600 text-gray-300">
+          <Button onClick={onClose} variant="outline">
             Cerrar
           </Button>
         </div>
