@@ -1,23 +1,39 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import Sidebar from '../../components/Sidebar';
 import AppointmentForm from '../../components/AppointmentForm';
-import { Calendar, momentLocalizer } from 'react-big-calendar';
-import moment from 'moment'; // Using moment as localizer for simplicity
+import { Calendar, momentLocalizer, Views, View } from 'react-big-calendar';
+import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import './calendar-overrides.css'; // Import custom overrides AFTER default css
+import './calendar-overrides.css';
 import { getAppointments, addAppointment, updateAppointment, deleteAppointment, Appointment } from '../../lib/firestore';
+import { Header } from '@/components/Header';
 
 // Setup the localizer
 const localizer = momentLocalizer(moment);
 
+// Configuración de las vistas disponibles
+const views = {
+  month: true,
+  week: true,
+  day: true,
+  agenda: true
+};
+
+// Configuración de los horarios de trabajo
+const minTime = new Date();
+minTime.setHours(8, 0, 0);
+const maxTime = new Date();
+maxTime.setHours(20, 0, 0);
+
 export default function AgendaCitasPage() {
   const [selectedDateRange, setSelectedDateRange] = useState<{ start: Date; end: Date } | null>(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
-  const [events, setEvents] = useState<any[]>([]); // State to hold calendar events
+  const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedView, setSelectedView] = useState<View>(Views.WEEK);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -25,10 +41,13 @@ export default function AgendaCitasPage() {
         const appointments = await getAppointments();
         const calendarEvents = appointments.map(appointment => ({
           id: appointment.id,
-          title: `Cita: ${appointment.patientName} (${appointment.type})`,
+          title: `${appointment.patientName} - ${appointment.type}`,
           start: new Date(`${appointment.date}T${appointment.time}`),
-          end: new Date(new Date(`${appointment.date}T${appointment.time}`).getTime() + getTimeDuration(appointment.duration)),
+          end: new Date(new Date(`${appointment.date}T${appointment.time}`).getTime() + getTimeDuration(appointment.type)),
           tipoAtencion: appointment.type,
+          status: appointment.status,
+          notes: appointment.notes,
+          veterinarian: appointment.veterinarian
         }));
         setEvents(calendarEvents);
       } catch (err) {
@@ -49,11 +68,18 @@ export default function AgendaCitasPage() {
   const handleSelectSlot = ({ start, end }: { start: Date; end: Date }) => {
     setSelectedDateRange({ start, end });
     setIsFormVisible(true);
+    setSelectedEvent(null);
+  };
+
+  const handleSelectEvent = (event: any) => {
+    setSelectedEvent(event);
+    setIsFormVisible(true);
   };
 
   const handleFormClose = () => {
     setIsFormVisible(false);
-    setSelectedDateRange(null); // Clear selected range on close
+    setSelectedDateRange(null);
+    setSelectedEvent(null);
   };
 
   const handleAppointmentSave = async (appointmentData: any) => {
@@ -61,11 +87,12 @@ export default function AgendaCitasPage() {
       const newAppointment: Omit<Appointment, 'id'> = {
         patientId: appointmentData.patientId,
         patientName: appointmentData.mascota,
+        ownerId: appointmentData.ownerId,
+        ownerName: appointmentData.ownerName,
         date: appointmentData.date,
         time: appointmentData.time,
         type: appointmentData.tipoAtencion,
         veterinarian: appointmentData.veterinario,
-        duration: appointmentData.duracion,
         notes: appointmentData.notas,
         status: 'Programada'
       };
@@ -74,10 +101,13 @@ export default function AgendaCitasPage() {
       
       const newEvent = {
         id: appointmentId,
-        title: `Cita: ${appointmentData.mascota} (${appointmentData.tipoAtencion})`,
+        title: `${appointmentData.mascota} - ${appointmentData.tipoAtencion}`,
         start: new Date(`${appointmentData.date}T${appointmentData.time}`),
-        end: new Date(new Date(`${appointmentData.date}T${appointmentData.time}`).getTime() + getTimeDuration(appointmentData.duracion)),
+        end: new Date(new Date(`${appointmentData.date}T${appointmentData.time}`).getTime() + getTimeDuration(appointmentData.tipoAtencion)),
         tipoAtencion: appointmentData.tipoAtencion,
+        status: 'Programada',
+        notes: appointmentData.notas,
+        veterinarian: appointmentData.veterinario
       };
       
       setEvents([...events, newEvent]);
@@ -89,90 +119,115 @@ export default function AgendaCitasPage() {
     }
   };
 
-  // Helper function to get duration in milliseconds
-  const getTimeDuration = (duration: string): number => {
-    switch (duration) {
-      case '15 minutos': return 15 * 60 * 1000;
-      case '30 minutos': return 30 * 60 * 1000;
-      case '45 minutos': return 45 * 60 * 1000;
-      case '1 hora': return 60 * 60 * 1000;
-      default: return 30 * 60 * 1000; // Default to 30 minutes
+  const getTimeDuration = (type: string): number => {
+    switch (type) {
+      case 'Consulta':
+        return 30 * 60 * 1000; // 30 minutos
+      case 'Cirugía':
+        return 120 * 60 * 1000; // 2 horas
+      case 'Vacunación':
+        return 15 * 60 * 1000; // 15 minutos
+      case 'Control':
+        return 20 * 60 * 1000; // 20 minutos
+      default:
+        return 30 * 60 * 1000; // 30 minutos por defecto
     }
   };
 
-  // Function to assign colors based on tipoAtencion
   const eventPropGetter = (event: any) => {
     let className = '';
     switch (event.tipoAtencion) {
-      case 'Consulta General':
-        className = 'bg-blue-500'; 
+      case 'Consulta':
+        className = 'bg-blue-500';
         break;
       case 'Cirugía':
-        className = 'bg-red-500'; 
+        className = 'bg-red-500';
         break;
-      case 'Vacuna':
-        className = 'bg-green-500'; 
+      case 'Vacunación':
+        className = 'bg-green-500';
         break;
-      case 'Peluquería':
+      case 'Control':
         className = 'bg-yellow-500';
         break;
       default:
         className = 'bg-gray-500';
         break;
     }
-     // Ensure text color is readable in dark mode
-    const textColorClass = 'text-white'; 
+
+    if (event.status === 'Cancelada') {
+      className += ' opacity-50';
+    }
 
     return {
-      className: `${className} ${textColorClass}`,
-      // style: { backgroundColor: 'blue' } // Alternative: use inline styles
+      className: `${className} text-white`,
     };
   };
 
-   // Memoize events to prevent unnecessary re-renders
-   const memoizedEvents = useMemo(() => events, [events]);
+  const memoizedEvents = useMemo(() => events, [events]);
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Barra lateral */}
-      <Sidebar />
-
-      {/* Área de contenido principal */}
-      <div className="flex flex-col flex-1">
-        {/* Aquí podrías tener una barra superior específica de la agenda si es necesario */}
-        <main className="flex-1 p-6 overflow-y-auto">
-          <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Agenda de Citas</h2>
-          
-          {loading && <p className="text-gray-300">Cargando citas...</p>}
-          {error && <p className="text-red-500">Error: {error}</p>}
-          
-          {!loading && !error && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 flex-1 h-[600px]"> {/* Added height here */}
-               <Calendar
-                localizer={localizer}
-                events={memoizedEvents}
-                startAccessor="start"
-                endAccessor="end"
-                selectable // Permite seleccionar franjas de tiempo
-                onSelectSlot={handleSelectSlot} // Maneja la selección de franjas de tiempo
-                // onSelectEvent={handleSelectEvent} // Maneja clic en un evento existente si es necesario
-                defaultView='week' // Vista por defecto (day, week, month, agenda)
-                style={{ height: '100%' }} // Make calendar fill the container
-                eventPropGetter={eventPropGetter} // Apply custom styles/classes to events
-              />
-            </div>
-          )}
-
-          {/* Formulario de agendar citas (visible condicionalmente) */}
-          {isFormVisible && (
-            <AppointmentForm 
-              selectedDate={selectedDateRange ? selectedDateRange.start : null} // Pass the start date of the selected range
-              onClose={handleFormClose}
-              onSave={handleAppointmentSave}
+    <div className="flex-1 overflow-y-auto">
+      <div className="container mx-auto py-6 px-4">
+        <Header title="Agenda de Citas" />
+        
+        {loading && (
+          <div className="flex items-center justify-center h-[600px]">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          </div>
+        )}
+        
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+            <strong className="font-bold">Error: </strong>
+            <span className="block sm:inline">{error}</span>
+          </div>
+        )}
+        
+        {!loading && !error && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 flex-1 h-[600px]">
+            <Calendar
+              localizer={localizer}
+              events={memoizedEvents}
+              startAccessor="start"
+              endAccessor="end"
+              selectable
+              onSelectSlot={handleSelectSlot}
+              onSelectEvent={handleSelectEvent}
+              view={selectedView}
+              onView={(view) => setSelectedView(view)}
+              views={views}
+              min={minTime}
+              max={maxTime}
+              eventPropGetter={eventPropGetter}
+              popup
+              step={30}
+              timeslots={2}
+              className="h-full"
+              messages={{
+                next: "Siguiente",
+                previous: "Anterior",
+                today: "Hoy",
+                month: "Mes",
+                week: "Semana",
+                day: "Día",
+                agenda: "Agenda",
+                date: "Fecha",
+                time: "Hora",
+                event: "Evento",
+                noEventsInRange: "No hay citas en este rango"
+              }}
             />
-          )}
+          </div>
+        )}
 
-        </main>
+        {isFormVisible && (
+          <AppointmentForm 
+            selectedDate={selectedDateRange ? selectedDateRange.start : null}
+            selectedEvent={selectedEvent}
+            onClose={handleFormClose}
+            onSave={handleAppointmentSave}
+          />
+        )}
       </div>
     </div>
   );

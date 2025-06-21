@@ -1,11 +1,17 @@
 "use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import Sidebar from '../../components/Sidebar';
-import { Header } from '../../components/Header';
-import InventoryTable, { Product } from '../../components/InventoryTable';
-import { getInventoryItems } from '../../lib/firestore';
+import React, { useState, useCallback } from 'react';
+import { Button } from '@/components/ui/button';
+import InventoryTable from '../../components/InventoryTable';
+import ProductFormModal from '../../components/ProductFormModal';
+import { 
+  getInventoryItems, 
+  addInventoryItem, 
+  updateInventoryItem, 
+  deleteInventoryItem,
+  InventoryItem
+} from '../../lib/firestore';
+import { PlusCircle } from 'lucide-react';
 
 // Iconos SVG temporales (ejemplos)
 const MedicationIcon = (
@@ -40,36 +46,73 @@ const iconByCategory: { [key: string]: React.ReactNode } = {
 };
 
 export default function InventarioPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 7;
-  const totalPages = Math.ceil(products.length / itemsPerPage);
 
-  React.useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const firestoreProducts = await getInventoryItems();
-        // Adaptar los datos para incluir el icono
-        const adapted = firestoreProducts.map((item) => ({
-          ...item,
-          image: iconByCategory[item.category] || MedicationIcon,
-        }));
-        setProducts(adapted);
-      } catch (err) {
-        setError('Error al cargar inventario');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProducts();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [productToEdit, setProductToEdit] = useState<InventoryItem | null>(null);
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const firestoreProducts = await getInventoryItems();
+      setProducts(firestoreProducts);
+    } catch (err) {
+      setError('Error al cargar inventario');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  React.useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  const handleOpenModal = (product: InventoryItem | null = null) => {
+    setProductToEdit(product);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setProductToEdit(null);
+  };
+
+  const handleSaveProduct = async (productData: Omit<InventoryItem, 'id'> | InventoryItem) => {
+    try {
+      if ('id' in productData) {
+        await updateInventoryItem(productData.id, productData);
+      } else {
+        await addInventoryItem(productData);
+      }
+      handleCloseModal();
+      fetchProducts(); // Recargar productos
+    } catch (error) {
+      console.error("Failed to save product:", error);
+      // Aquí podrías mostrar una notificación de error al usuario
+    }
+  };
+  
+  const handleDeleteProduct = async (productId: string) => {
+    if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
+      try {
+        await deleteInventoryItem(productId);
+        fetchProducts(); // Recargar productos
+      } catch (error) {
+        console.error("Failed to delete product:", error);
+      }
+    }
+  };
+
+  const totalPages = Math.ceil(products.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentProducts = products.slice(startIndex, endIndex);
-  const displayedStart = startIndex + 1;
+  const displayedStart = products.length > 0 ? startIndex + 1 : 0;
   const displayedEnd = Math.min(endIndex, products.length);
 
   const handlePageChange = (page: number) => {
@@ -77,81 +120,65 @@ export default function InventarioPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Barra lateral */}
-      <Sidebar />
+    <>
+      <ProductFormModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSave={handleSaveProduct}
+        productToEdit={productToEdit}
+      />
+      <div className="flex-1 overflow-y-auto">
+        <div className="container mx-auto py-6 px-4">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-3xl font-bold">Inventario</h2>
+            <Button onClick={() => handleOpenModal()}>
+              <PlusCircle className="w-5 h-5 mr-2" />
+              Agregar Producto
+            </Button>
+          </div>
 
-      {/* Área de contenido principal */}
-      <div className="flex flex-col flex-1 bg-[#121212]">
-         {/* Barra superior */}
-        <Header title="Inventario" />
-
-        <main className="flex-1 p-6 overflow-y-auto">
-          <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Inventario</h2>
-          
-          {/* Aquí podrían ir filtros o controles si son necesarios, no se ven explícitamente en la imagen de la tabla */}
-
-          {/* Controles o botón para agregar producto */}
-          <div className="flex justify-end mb-4">
-             <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md flex items-center">
-               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 mr-2">
-                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-               </svg>
-               Agregar Producto
-             </button>
-           </div>
-
-          {/* Tabla de inventario */}
           <div className="mb-6">
-            {loading && <p className="text-gray-300">Cargando inventario...</p>}
-            {error && <p className="text-red-500">{error}</p>}
-            {!loading && !error && <InventoryTable products={currentProducts} />}
+            {loading && <p className="text-center text-muted-foreground py-8">Cargando inventario...</p>}
+            {error && <p className="text-center text-red-500 py-8">{error}</p>}
+            {!loading && !error && (
+              <InventoryTable 
+                products={currentProducts}
+                onEdit={handleOpenModal}
+                onDelete={handleDeleteProduct}
+              />
+            )}
           </div>
 
-           {/* Paginación */}
-          <div className="flex items-center justify-between border-t border-gray-700 bg-[#1f2937] px-4 py-3 sm:px-6 rounded-lg shadow">
-             <div className="flex-1 flex justify-between sm:hidden">
-               {/* Mobile pagination */}
-                <button 
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage <= 1}
-                  className="relative inline-flex items-center px-4 py-2 border border-gray-600 text-sm font-medium rounded-md text-gray-200 bg-gray-700 hover:bg-gray-600"
-                >
-                  Anterior
-                </button>
-                <button 
-                  onClick={() => handlePageChange(currentPage + 1)}
-                   disabled={currentPage >= totalPages}
-                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-600 text-sm font-medium rounded-md text-gray-200 bg-gray-700 hover:bg-gray-600"
-                >
-                  Siguiente
-                </button>
-             </div>
-             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-300">
-                    Mostrando <span className="font-medium">{displayedStart}</span> a <span className="font-medium">{displayedEnd}</span> de <span className="font-medium">{products.length}</span> productos
-                  </p>
-                </div>
-                <div>
-                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                    {/* Pagination numbers */}
-                     {[...Array(totalPages)].map((_, i) => (
-                       <button
-                         key={i}
-                         onClick={() => handlePageChange(i + 1)}
-                         className={`relative inline-flex items-center px-4 py-2 border border-gray-600 text-sm font-medium ${currentPage === i + 1 ? 'z-10 bg-blue-700 border-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
-                       >
-                         {i + 1}
-                       </button>
-                     ))}
-                  </nav>
-                </div>
-             </div>
-          </div>
-
-        </main>
+          {products.length > 0 && (
+            <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 sm:px-6 rounded-lg shadow">
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Mostrando <span className="font-medium">{displayedStart}</span> a <span className="font-medium">{displayedEnd}</span> de <span className="font-medium">{products.length}</span> productos
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      {[...Array(totalPages)].map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handlePageChange(i + 1)}
+                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                            currentPage === i + 1 
+                              ? 'z-10 bg-blue-600 border-blue-600 text-white' 
+                              : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                    </nav>
+                  </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 } 

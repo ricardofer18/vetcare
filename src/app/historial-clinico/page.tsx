@@ -1,17 +1,16 @@
 "use client";
 
 import React from 'react';
-import Sidebar from '../../components/Sidebar';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Label } from '@/components/ui/label';
 import { Header } from '../../components/Header';
 
 export default function HistorialClinicoPage() {
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Barra lateral */}
-      <Sidebar />
-
-      {/* Área de contenido principal */}
-      <div className="flex flex-col flex-1 bg-[#121212]">
+    <div className="flex-1 overflow-y-auto">
+      <div className="container mx-auto py-6 px-4">
         {/* Barra superior */}
         <Header title="Historial Clínico" />
 

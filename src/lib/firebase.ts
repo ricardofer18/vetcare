@@ -2,6 +2,8 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -23,6 +25,12 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firestore
 const db = getFirestore(app);
 
+// Initialize Auth
+const auth = getAuth(app);
+
+// Initialize Storage
+const storage = getStorage(app);
+
 // Check if analytics is available (it might not be in environments like server-side rendering)
 let analytics;
 if (typeof window !== 'undefined') {
@@ -30,4 +38,4 @@ if (typeof window !== 'undefined') {
 }
 
 // Export app, firestore, and other services you initialize
-export { app, analytics, db }; 
+export { app, analytics, db, auth, storage }; 
