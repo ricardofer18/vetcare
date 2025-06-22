@@ -202,32 +202,24 @@ export function DisabledButton({
   console.log(`[DisabledButton Debug] User:`, user);
   console.log(`[DisabledButton Debug] Has Access:`, hasAccess);
 
-  // Temporalmente permitir acceso siempre para debug
+  if (hasAccess) {
+    return (
+      <Button {...props}>
+        {children}
+      </Button>
+    );
+  }
+
   return (
-    <Button {...props}>
-      {children}
-    </Button>
+    <div className="relative inline-block cursor-not-allowed" title={tooltip}>
+       <Button {...props} disabled>
+        {children}
+       </Button>
+       <div className="absolute inset-0 flex items-center justify-center">
+        <Lock className="h-4 w-4 text-white" />
+       </div>
+    </div>
   );
-
-  // Código original comentado temporalmente
-  // if (hasAccess) {
-  //   return (
-  //     <Button {...props}>
-  //       {children}
-  //     </Button>
-  //   );
-  // }
-
-  // return (
-  //   <div className="relative inline-block cursor-not-allowed" title={tooltip}>
-  //      <Button {...props} disabled>
-  //       {children}
-  //      </Button>
-  //      <div className="absolute inset-0 flex items-center justify-center">
-  //       <Lock className="h-4 w-4 text-white" />
-  //      </div>
-  //   </div>
-  // );
 }
 
 // --- ELEMENTO GENÉRICO CON CONTROL DE PERMISOS ---

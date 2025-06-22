@@ -9,16 +9,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Mascota } from '@/types';
+import { Patient } from '@/types';
 import { useToast } from '@/components/ui/use-toast';
 import { Save, X, Sparkles } from 'lucide-react';
 import { AITextarea } from '@/components/ui/ai-textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DisabledButton } from '@/components/RoleGuard';
 
 interface EditPatientModalProps {
   isOpen: boolean;
   onClose: () => void;
-  paciente: Mascota;
+  paciente: Patient;
   onPatientUpdated: () => void;
 }
 
@@ -48,7 +49,7 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({
         nombre: paciente.nombre || '',
         especie: paciente.especie || '',
         raza: paciente.raza || '',
-        edad: paciente.edad || 0,
+        edad: typeof paciente.edad === 'string' ? parseInt(paciente.edad) || 0 : paciente.edad || 0,
         peso: paciente.peso || 0,
         fechaNacimiento: paciente.fechaNacimiento || '',
         sexo: paciente.sexo || 'Macho',
@@ -61,7 +62,7 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({
   const handleInputChange = (field: string, value: string | number) => {
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      [field]: field === 'edad' || field === 'peso' ? Number(value) : value
     }));
   };
 
@@ -219,12 +220,12 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({
                 label="Observaciones del Paciente"
                 field="observaciones"
                 mascotaInfo={{
-                  nombre: paciente.nombre,
-                  especie: paciente.especie,
-                  raza: paciente.raza,
-                  edad: paciente.edad,
-                  peso: paciente.peso,
-                  sexo: paciente.sexo,
+                  nombre: paciente.nombre || '',
+                  especie: paciente.especie || '',
+                  raza: paciente.raza || '',
+                  edad: Number(paciente.edad) || 0,
+                  peso: Number(paciente.peso) || 0,
+                  sexo: paciente.sexo || 'Macho',
                 }}
                 minHeight="min-h-[100px]"
               />
@@ -240,13 +241,16 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({
                 <X className="w-4 h-4 mr-2" />
                 Cancelar
               </Button>
-              <Button
+              <DisabledButton
+                resource="pacientes"
+                action="update"
                 type="submit"
                 disabled={isLoading}
+                tooltip="Guardar cambios del paciente"
               >
                 <Save className="w-4 h-4 mr-2" />
                 {isLoading ? 'Guardando...' : 'Guardar Cambios'}
-              </Button>
+              </DisabledButton>
             </div>
           </form>
         </ScrollArea>

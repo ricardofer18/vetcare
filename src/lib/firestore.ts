@@ -621,4 +621,34 @@ export const getAllRolePermissions = async (): Promise<RolePermissions> => {
     });
 
     return allPermissions;
-} 
+}
+
+// Nueva función para crear usuario directamente sin usar Firebase Auth
+export const createUserDirectly = async (
+  email: string,
+  displayName: string,
+  role: UserRole
+): Promise<string> => {
+  try {
+    // Generar un UID único (similar al formato de Firebase Auth)
+    const uid = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const userRef = doc(db, 'usuarios', uid);
+    await setDoc(userRef, {
+      uid,
+      email,
+      displayName,
+      role,
+      active: true,
+      createdAt: new Date(),
+      lastLogin: new Date(),
+      // Marcar que este usuario necesita configurar su contraseña
+      needsPasswordSetup: true
+    });
+    
+    return uid;
+  } catch (error) {
+    console.error('Error al crear usuario directamente:', error);
+    throw error;
+  }
+}; 

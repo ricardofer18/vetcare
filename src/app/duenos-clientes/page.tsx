@@ -141,22 +141,34 @@ export default function DuenosClientesPage() {
           
           <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto bg-background">
             {/* Barra de búsqueda */}
-            <div className="bg-card rounded-lg shadow border p-3 sm:p-4 mb-4 sm:mb-6 flex items-center gap-2 sm:gap-4">
-              <div className="flex items-center flex-grow">
-                <Input 
-                  type="text" 
-                  placeholder="Buscar por nombre, apellido o RUT..."
-                  className="w-full text-sm sm:text-base"
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                />
-                  </div>
-              {busqueda && (
-                <Button variant="outline" onClick={() => setBusqueda('')} size="sm">
-                  Limpiar
-                </Button>
-              )}
-                   </div>
+            <div className="bg-card rounded-lg shadow border p-3 sm:p-4 mb-4 sm:mb-6">
+              <div className="flex justify-between items-center gap-2 sm:gap-4">
+                <div className="flex items-center flex-grow">
+                  <Input 
+                    type="text" 
+                    placeholder="Buscar por nombre, apellido o RUT..."
+                    className="w-full text-sm sm:text-base"
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                  />
+                </div>
+                {busqueda && (
+                  <Button variant="outline" onClick={() => setBusqueda('')} size="sm">
+                    Limpiar
+                  </Button>
+                )}
+                <DisabledButton
+                  resource="duenos"
+                  action="create"
+                  onClick={() => {/* TODO: Implementar modal de nuevo dueño */}}
+                  className="h-9 sm:h-11 px-3 sm:px-6 text-sm sm:text-base font-medium hover:scale-105 transition-all duration-200 cursor-pointer hover:shadow-lg"
+                  tooltip="Agregar nuevo dueño"
+                >
+                  <span className="hidden sm:inline">Agregar Dueño</span>
+                  <span className="sm:hidden">Agregar</span>
+                </DisabledButton>
+              </div>
+            </div>
 
             {/* Tabla de dueños/clientes */}
             <div className="mb-4 sm:mb-6">

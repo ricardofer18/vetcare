@@ -126,24 +126,36 @@ export default function PacientesPage() {
           <Header title="Gestión de Pacientes" />
           
           <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto bg-background">
-            <div className="flex gap-2 sm:gap-4 flex-1 max-w-md mb-4 sm:mb-6">
-              <Input
-                placeholder="Buscar por nombre, especie, raza o dueño..."
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                className="text-sm sm:text-base"
-              />
-            {busqueda && (
-                <Button 
-                  variant="outline"
-                  onClick={() => setBusqueda('')}
-                  size="sm"
-                  className="text-xs sm:text-sm"
-                >
-                  Limpiar
-                </Button>
-            )}
-          </div>
+            <div className="flex justify-between items-center mb-4 sm:mb-6">
+              <div className="flex gap-2 sm:gap-4 flex-1 max-w-md">
+                <Input
+                  placeholder="Buscar por nombre, especie, raza o dueño..."
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  className="text-sm sm:text-base"
+                />
+                {busqueda && (
+                  <Button 
+                    variant="outline"
+                    onClick={() => setBusqueda('')}
+                    size="sm"
+                    className="text-xs sm:text-sm"
+                  >
+                    Limpiar
+                  </Button>
+                )}
+              </div>
+              <DisabledButton
+                resource="pacientes"
+                action="create"
+                onClick={() => {/* TODO: Implementar modal de nuevo paciente */}}
+                className="h-9 sm:h-11 px-3 sm:px-6 text-sm sm:text-base font-medium hover:scale-105 transition-all duration-200 cursor-pointer hover:shadow-lg"
+                tooltip="Agregar nuevo paciente"
+              >
+                <span className="hidden sm:inline">Agregar Paciente</span>
+                <span className="sm:hidden">Agregar</span>
+              </DisabledButton>
+            </div>
 
               {isLoading ? (
               <div className="flex justify-center items-center h-48 sm:h-64">

@@ -26,8 +26,10 @@ import {
   Calendar,
   CheckCircle,
   AlertCircle,
-  Pencil
+  Pencil,
+  FileText
 } from "lucide-react"
+import { DisabledButton } from "@/components/RoleGuard"
 
 const editConsultaSchema = z.object({
   motivo: z.string().min(1, "El motivo es requerido"),
@@ -354,10 +356,13 @@ export function EditarConsultaModal({
           >
             Cancelar
           </Button>
-          <Button 
+          <DisabledButton 
+            resource="consultas"
+            action="update"
             onClick={handleSubmit(onSubmit)}
             disabled={loading}
             className="bg-primary hover:bg-primary/90"
+            tooltip="Actualizar consulta"
           >
             {loading ? (
               <>
@@ -370,7 +375,7 @@ export function EditarConsultaModal({
                 Actualizar Consulta
               </>
             )}
-          </Button>
+          </DisabledButton>
         </div>
       </DialogContent>
     </Dialog>

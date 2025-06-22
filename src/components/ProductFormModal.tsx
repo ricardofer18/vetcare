@@ -8,6 +8,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { DisabledButton } from './RoleGuard';
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -185,12 +186,15 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
           >
             Cancelar
           </Button>
-          <Button 
+          <DisabledButton 
+            resource="inventario"
+            action={productToEdit ? "update" : "create"}
             type="submit"
             className="hover:scale-105 transition-transform duration-200 cursor-pointer"
+            tooltip={productToEdit ? "Actualizar producto" : "Guardar nuevo producto"}
           >
             {productToEdit ? 'Actualizar Producto' : 'Guardar Producto'}
-          </Button>
+          </DisabledButton>
         </div>
       </form>
     </Modal>

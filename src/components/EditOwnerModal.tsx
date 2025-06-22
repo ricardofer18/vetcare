@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { updateOwner } from '@/lib/firestore';
-import { Owner } from '@/lib/firestore';
+import { Owner } from '@/types';
 import { User, UserCheck, CreditCard, Mail, Phone, MapPin, Save, X } from 'lucide-react';
+import { DisabledButton } from '@/components/RoleGuard';
 
 interface EditOwnerModalProps {
   isOpen: boolean;
@@ -206,7 +207,14 @@ export function EditOwnerModal({ isOpen, onClose, onOwnerUpdated, owner }: EditO
               <X className="w-4 h-4" />
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading} className="flex items-center gap-2">
+            <DisabledButton 
+              resource="duenos"
+              action="update"
+              type="submit" 
+              disabled={loading} 
+              className="flex items-center gap-2"
+              tooltip="Guardar cambios del dueño"
+            >
               {loading ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
               ) : (
@@ -215,7 +223,7 @@ export function EditOwnerModal({ isOpen, onClose, onOwnerUpdated, owner }: EditO
                   Guardar Cambios
                 </>
               )}
-            </Button>
+            </DisabledButton>
           </div>
         </form>
       </DialogContent>

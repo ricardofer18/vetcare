@@ -333,17 +333,20 @@ export default function ConsultasPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Button
+                            <DisabledButton
+                              resource="citas"
+                              action="delete"
                               size="sm"
                               variant="ghost"
                               className="h-8 w-8 text-destructive hover:text-destructive"
+                              tooltip="Eliminar cita agendada"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteAppointment(appointment.id, appointment.patientName);
                               }}
                             >
                               <Trash2 className="h-4 w-4" />
-                            </Button>
+                            </DisabledButton>
                           </div>
                         </div>
                       </CardContent>
@@ -416,9 +419,12 @@ export default function ConsultasPage() {
                                   <span className="text-sm text-muted-foreground">
                                     {formatDate(consulta.fecha)}
                                   </span>
-                                  <Button
+                                  <DisabledButton
+                                    resource="consultas"
+                                    action="update"
                                     size="sm"
                                     variant="outline"
+                                    tooltip="Editar consulta"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       console.log('Botón Editar clickeado');
@@ -427,10 +433,13 @@ export default function ConsultasPage() {
                                   >
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Editar
-                                  </Button>
-                                  <Button
+                                  </DisabledButton>
+                                  <DisabledButton
+                                    resource="consultas"
+                                    action="update"
                                     size="sm"
                                     className="bg-green-600 hover:bg-green-700"
+                                    tooltip="Marcar consulta como realizada"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       console.log('Botón Marcar como Realizada clickeado');
@@ -438,7 +447,7 @@ export default function ConsultasPage() {
                                     }}
                                   >
                                     Marcar como Realizada
-                                  </Button>
+                                  </DisabledButton>
                                 </div>
                               </CardTitle>
                             </CardHeader>
@@ -494,9 +503,12 @@ export default function ConsultasPage() {
                                   <span className="text-sm text-muted-foreground">
                                     {formatDate(consulta.fecha)}
                                   </span>
-                                  <Button
+                                  <DisabledButton
+                                    resource="consultas"
+                                    action="update"
                                     size="sm"
                                     variant="outline"
+                                    tooltip="Editar consulta"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       console.log('Botón Editar clickeado');
@@ -505,7 +517,7 @@ export default function ConsultasPage() {
                                   >
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Editar
-                                  </Button>
+                                  </DisabledButton>
                                 </div>
                               </CardTitle>
                             </CardHeader>

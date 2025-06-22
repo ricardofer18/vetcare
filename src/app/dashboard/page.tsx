@@ -39,6 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { X } from 'lucide-react';
 import { collection, getDocs, query, where, orderBy, limit, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { DisabledButton } from '@/components/RoleGuard';
 
 interface DashboardStats {
   totalPatients: number;
@@ -382,46 +383,61 @@ export default function DashboardPage() {
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button 
+                  <DisabledButton 
+                    resource="citas"
+                    action="create"
                     variant="outline" 
                     className="w-full justify-start border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
+                    tooltip="Agendar nueva cita"
                     onClick={() => router.push('/agenda')}
                   >
                     <Calendar className="h-4 w-4 mr-2" />
                     Agendar Cita
-                  </Button>
-                  <Button 
+                  </DisabledButton>
+                  <DisabledButton 
+                    resource="consultas"
+                    action="create"
                     variant="outline" 
                     className="w-full justify-start border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
+                    tooltip="Crear nueva consulta"
                     onClick={() => router.push('/consultas')}
                   >
                     <Stethoscope className="h-4 w-4 mr-2" />
                     Nueva Consulta
-                  </Button>
-                  <Button 
+                  </DisabledButton>
+                  <DisabledButton 
+                    resource="pacientes"
+                    action="create"
                     variant="outline" 
                     className="w-full justify-start border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
+                    tooltip="Registrar nuevo paciente"
                     onClick={() => router.push('/pacientes')}
                   >
                     <Users className="h-4 w-4 mr-2" />
                     Registrar Paciente
-                  </Button>
-                  <Button 
+                  </DisabledButton>
+                  <DisabledButton 
+                    resource="duenos"
+                    action="create"
                     variant="outline" 
                     className="w-full justify-start border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
+                    tooltip="Agregar nuevo dueño"
                     onClick={() => router.push('/duenos-clientes')}
                   >
                     <UserCheck className="h-4 w-4 mr-2" />
                     Agregar Dueño
-                  </Button>
-                  <Button 
+                  </DisabledButton>
+                  <DisabledButton 
+                    resource="inventario"
+                    action="read"
                     variant="outline" 
                     className="w-full justify-start border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
+                    tooltip="Gestionar inventario"
                     onClick={() => router.push('/inventario')}
                   >
                     <Package className="h-4 w-4 mr-2" />
                     Gestionar Inventario
-                  </Button>
+                  </DisabledButton>
                 </CardContent>
               </Card>
 
