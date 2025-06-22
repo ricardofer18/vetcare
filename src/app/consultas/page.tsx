@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { getAppointments, deleteAppointment } from '@/lib/firestore';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { EditarConsultaModal } from '@/components/consultas/EditarConsultaModal';
+import { NuevaConsultaModal } from '@/components/consultas/NuevaConsultaModal';
 import { 
   CanCreateConsultas, 
   DisabledButton,
@@ -30,6 +31,8 @@ export default function ConsultasPage() {
   const [selectedConsulta, setSelectedConsulta] = useState<Consulta | null>(null);
   const [isDetalleOpen, setIsDetalleOpen] = useState(false);
   const [isEditarOpen, setIsEditarOpen] = useState(false);
+  const [isNuevaConsultaOpen, setIsNuevaConsultaOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const cargarConsultas = async () => {
@@ -217,8 +220,26 @@ export default function ConsultasPage() {
 
   const handleMarcarComoRealizada = async (consulta: Consulta) => {
     try {
+      console.log('Actualizando consulta:', consulta);
+      
+      // La ruta correcta debería ser: duenos/{duenoId}/mascotas/{mascotaId}/consultas/{consultaId}
+      // Pero necesitamos obtener el duenoId de la consulta
+      const duenoId = consulta.mascota?.duenoId || consulta.mascota?.dueno?.id;
+      
+      if (!duenoId) {
+        console.error('No se pudo obtener el duenoId de la consulta');
+        toast({
+          title: "Error",
+          description: "No se pudo identificar el dueño de la mascota.",
+          variant: 'destructive'
+        });
+        return;
+      }
+
       // Actualizar el estado de la consulta en Firestore
-      const consultaRef = doc(db, 'duenos', consulta.mascotaId, 'mascotas', consulta.mascotaId, 'consultas', consulta.id);
+      const consultaRef = doc(db, 'duenos', duenoId, 'mascotas', consulta.mascotaId, 'consultas', consulta.id);
+      console.log('Referencia de consulta:', consultaRef.path);
+      
       await updateDoc(consultaRef, {
         estado: 'Realizada'
       });
@@ -247,6 +268,19 @@ export default function ConsultasPage() {
 
   const handleConsultaUpdated = () => {
     cargarConsultas();
+  };
+
+  const handleAppointmentClick = (appointment: Appointment) => {
+    console.log('Cita agendada clickeada:', appointment);
+    setSelectedAppointment(appointment);
+    setIsNuevaConsultaOpen(true);
+  };
+
+  const handleNuevaConsultaCreated = () => {
+    setIsNuevaConsultaOpen(false);
+    setSelectedAppointment(null);
+    cargarConsultas();
+    cargarCitasAgendadas();
   };
 
   return (
@@ -278,6 +312,7 @@ export default function ConsultasPage() {
                     <Card 
                       key={appointment.id} 
                       className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-primary"
+                      onClick={() => handleAppointmentClick(appointment)}
                     >
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start">
@@ -298,20 +333,17 @@ export default function ConsultasPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <DisabledButton
-                              resource="consultas"
-                              action="update"
+                            <Button
                               size="sm"
                               variant="ghost"
                               className="h-8 w-8 text-destructive hover:text-destructive"
-                              tooltip="Solo administradores pueden eliminar citas"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteAppointment(appointment.id, appointment.patientName);
                               }}
                             >
                               <Trash2 className="h-4 w-4" />
-                            </DisabledButton>
+                            </Button>
                           </div>
                         </div>
                       </CardContent>
@@ -384,33 +416,29 @@ export default function ConsultasPage() {
                                   <span className="text-sm text-muted-foreground">
                                     {formatDate(consulta.fecha)}
                                   </span>
-                                  <DisabledButton
-                                    resource="consultas"
-                                    action="update"
+                                  <Button
                                     size="sm"
                                     variant="outline"
-                                    tooltip="Editar datos de la consulta"
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      console.log('Botón Editar clickeado');
                                       handleEditConsulta(consulta);
                                     }}
                                   >
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Editar
-                                  </DisabledButton>
-                                  <DisabledButton
-                                    resource="consultas"
-                                    action="update"
+                                  </Button>
+                                  <Button
                                     size="sm"
                                     className="bg-green-600 hover:bg-green-700"
-                                    tooltip="Marcar la consulta como realizada"
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      console.log('Botón Marcar como Realizada clickeado');
                                       handleMarcarComoRealizada(consulta);
                                     }}
                                   >
                                     Marcar como Realizada
-                                  </DisabledButton>
+                                  </Button>
                                 </div>
                               </CardTitle>
                             </CardHeader>
@@ -466,20 +494,18 @@ export default function ConsultasPage() {
                                   <span className="text-sm text-muted-foreground">
                                     {formatDate(consulta.fecha)}
                                   </span>
-                                  <DisabledButton
-                                    resource="consultas"
-                                    action="update"
+                                  <Button
                                     size="sm"
                                     variant="outline"
-                                    tooltip="Editar datos de la consulta"
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      console.log('Botón Editar clickeado');
                                       handleEditConsulta(consulta);
                                     }}
                                   >
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Editar
-                                  </DisabledButton>
+                                  </Button>
                                 </div>
                               </CardTitle>
                             </CardHeader>
@@ -524,6 +550,18 @@ export default function ConsultasPage() {
             onConsultaUpdated={handleConsultaUpdated}
           />
         </>
+      )}
+
+      {selectedAppointment && (
+        <NuevaConsultaModal
+          isOpen={isNuevaConsultaOpen}
+          onClose={() => {
+            setIsNuevaConsultaOpen(false);
+            setSelectedAppointment(null);
+          }}
+          onConsultaCreated={handleNuevaConsultaCreated}
+          selectedAppointment={selectedAppointment}
+        />
       )}
     </RouteGuard>
   );

@@ -200,8 +200,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const resourcePermission = user.permissions.find(p => p.resource === resource);
     console.log(`[hasPermission] Permiso encontrado para ${resource}:`, resourcePermission);
     
-    const hasAccess = resourcePermission?.actions.includes(action) || false;
+    if (!resourcePermission) {
+      console.log(`[hasPermission] No se encontró permiso para el recurso: ${resource}`);
+      return false;
+    }
+    
+    const hasAccess = resourcePermission.actions.includes(action);
     console.log(`[hasPermission] Acceso ${resource}:${action} = ${hasAccess}`);
+    console.log(`[hasPermission] Acciones disponibles:`, resourcePermission.actions);
     
     return hasAccess;
   };

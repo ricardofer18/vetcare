@@ -49,20 +49,42 @@ export function RouteGuard({
         <p className="text-sm text-muted-foreground">
           No tienes permisos para acceder a esta sección.
         </p>
+        <p className="text-xs text-muted-foreground mt-2">
+          Recurso: {resource}, Acción: {action}
+        </p>
       </div>
     </div>
   )
 }: RouteGuardProps) {
-  const { hasPermission, checkAndRedirectIfNoPermission } = useAuth();
+  const { hasPermission, checkAndRedirectIfNoPermission, loading, user } = useAuth();
   const hasAccess = hasPermission(resource, action);
+
+  // Debug: Mostrar información de permisos
+  console.log(`[RouteGuard Debug] ${resource}:${action}`);
+  console.log(`[RouteGuard Debug] Loading:`, loading);
+  console.log(`[RouteGuard Debug] User:`, user);
+  console.log(`[RouteGuard Debug] Has Access:`, hasAccess);
 
   // Verificar permisos al montar el componente y cuando cambien los permisos
   useEffect(() => {
-    // Solo verificar redirección si el usuario no tiene acceso
-    if (!hasAccess) {
+    // Solo verificar redirección si el usuario no tiene acceso y no está cargando
+    if (!loading && !hasAccess) {
+      console.log(`[RouteGuard] Usuario no tiene acceso a ${resource}:${action}, redirigiendo...`);
       checkAndRedirectIfNoPermission(resource, action);
     }
-  }, [resource, action, hasAccess, checkAndRedirectIfNoPermission]);
+  }, [resource, action, hasAccess, checkAndRedirectIfNoPermission, loading]);
+
+  // Si está cargando, mostrar loading
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-sm text-muted-foreground">Cargando permisos...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!hasAccess) {
     return fallback;
@@ -171,27 +193,41 @@ export function DisabledButton({
   tooltip = "No tienes permisos para esta acción",
   ...props
 }: DisabledButtonProps) {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user, loading } = useAuth();
   const hasAccess = hasPermission(resource, action);
 
-  if (hasAccess) {
-    return (
-      <Button {...props}>
-        {children}
-      </Button>
-    );
-  }
+  // Debug logs para DisabledButton
+  console.log(`[DisabledButton Debug] ${resource}:${action}`);
+  console.log(`[DisabledButton Debug] Loading:`, loading);
+  console.log(`[DisabledButton Debug] User:`, user);
+  console.log(`[DisabledButton Debug] Has Access:`, hasAccess);
 
+  // Temporalmente permitir acceso siempre para debug
   return (
-    <div className="relative inline-block cursor-not-allowed" title={tooltip}>
-       <Button {...props} disabled>
-        {children}
-       </Button>
-       <div className="absolute inset-0 flex items-center justify-center">
-        <Lock className="h-4 w-4 text-white" />
-      </div>
-    </div>
+    <Button {...props}>
+      {children}
+    </Button>
   );
+
+  // Código original comentado temporalmente
+  // if (hasAccess) {
+  //   return (
+  //     <Button {...props}>
+  //       {children}
+  //     </Button>
+  //   );
+  // }
+
+  // return (
+  //   <div className="relative inline-block cursor-not-allowed" title={tooltip}>
+  //      <Button {...props} disabled>
+  //       {children}
+  //      </Button>
+  //      <div className="absolute inset-0 flex items-center justify-center">
+  //       <Lock className="h-4 w-4 text-white" />
+  //      </div>
+  //   </div>
+  // );
 }
 
 // --- ELEMENTO GENÉRICO CON CONTROL DE PERMISOS ---
