@@ -37,7 +37,7 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserMo
 
       toast({
         title: 'Usuario creado',
-        description: `El usuario ha sido creado exitosamente con email: ${email}`,
+        description: `El usuario ha sido creado exitosamente y puede iniciar sesión inmediatamente con su email y contraseña.`,
         duration: 5000
       });
 

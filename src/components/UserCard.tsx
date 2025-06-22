@@ -12,7 +12,7 @@ interface UserCardProps {
   usuario: {
     uid: string;
     email: string | null;
-    nombre?: string;
+    displayName?: string;
     role: UserRole;
     disabled?: boolean;
     ultimoAcceso?: string;
@@ -34,6 +34,8 @@ const getRoleVariant = (role: UserRole) => {
 };
 
 export const UserCard: React.FC<UserCardProps> = ({ usuario, onEdit }) => {
+  console.log('UserCard recibió usuario:', usuario);
+  
   return (
     <div className="bg-card border border-border rounded-lg p-3 sm:p-4 lg:p-6 hover:shadow-md transition-all duration-200">
       <div className="flex items-center justify-between mb-3 sm:mb-4">
@@ -48,7 +50,7 @@ export const UserCard: React.FC<UserCardProps> = ({ usuario, onEdit }) => {
               {usuario.email}
             </h3>
             <p className="text-xs sm:text-sm text-muted-foreground truncate">
-              {usuario.nombre || 'Sin nombre'}
+              {usuario.displayName || 'Sin nombre'}
             </p>
           </div>
         </div>

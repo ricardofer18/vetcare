@@ -55,6 +55,7 @@ export default function UsuariosPage() {
         ...doc.data()
       })) as Usuario[];
 
+      console.log('Usuarios cargados:', usuariosData);
       setUsuarios(usuariosData);
     } catch (error: any) {
       console.error('Error al cargar usuarios:', error);

@@ -625,7 +625,7 @@ export const getAllRolePermissions = async (): Promise<RolePermissions> => {
     return allPermissions;
 }
 
-// Nueva función para crear usuario usando la API route del servidor
+// Nueva función para crear usuario usando Firebase Auth directamente
 export const createUserDirectly = async (
   email: string,
   displayName: string,
@@ -633,40 +633,70 @@ export const createUserDirectly = async (
   password: string
 ): Promise<string> => {
   try {
-    const response = await fetch('/api/users/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email,
-        displayName,
-        role,
-        password,
-      }),
+    // Crear una instancia completamente separada de Firebase Auth
+    const { initializeApp } = await import('firebase/app');
+    const { getAuth, createUserWithEmailAndPassword, updateProfile } = await import('firebase/auth');
+    
+    // Crear una nueva instancia de Firebase para crear usuarios
+    const tempApp = initializeApp({
+      apiKey: "AIzaSyAB7YtjFBU3b2iWWjML2HQCyg98fwZ_9Mo",
+      authDomain: "vetcare-8bf32.firebaseapp.com",
+      projectId: "vetcare-8bf32",
+      storageBucket: "vetcare-8bf32.appspot.com",
+      messagingSenderId: "688144507799",
+      appId: "1:688144507799:web:c1d31faa82f1c9444fdad2",
+      measurementId: "G-KTLLYKKV1L"
+    }, 'temp-auth');
+    
+    const tempAuth = getAuth(tempApp);
+    
+    // Crear el usuario con Firebase Auth
+    const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
+    const user = userCredential.user;
+    
+    // Actualizar el displayName del usuario
+    await updateProfile(user, {
+      displayName: displayName
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Error al crear usuario');
-    }
-
+    
     // Guardar información adicional en Firestore
-    const userRef = doc(db, 'usuarios', data.uid);
+    const userRef = doc(db, 'usuarios', user.uid);
     await setDoc(userRef, {
-      uid: data.uid,
-      email,
-      displayName,
-      role,
+      uid: user.uid,
+      email: user.email,
+      displayName: displayName,
+      role: role,
       active: true,
       createdAt: new Date(),
-      lastLogin: new Date()
+      lastLogin: new Date(),
+      passwordSet: true
     });
 
-    return data.uid;
-  } catch (error) {
+    // Cerrar sesión del usuario temporal
+    const { signOut } = await import('firebase/auth');
+    await signOut(tempAuth);
+    
+    console.log('Usuario creado exitosamente en Firebase Auth y Firestore:', user.uid);
+    return user.uid;
+  } catch (error: any) {
     console.error('Error al crear usuario directamente:', error);
+    
+    // Manejar errores específicos de Firebase Auth
+    if (error.code) {
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          throw new Error('Este correo electrónico ya está registrado');
+        case 'auth/invalid-email':
+          throw new Error('El correo electrónico no es válido');
+        case 'auth/weak-password':
+          throw new Error('La contraseña es demasiado débil. Debe tener al menos 6 caracteres');
+        case 'auth/operation-not-allowed':
+          throw new Error('La creación de usuarios con email y contraseña no está habilitada');
+        default:
+          throw new Error(`Error de Firebase Auth: ${error.message}`);
+      }
+    }
+    
     throw error;
   }
 }; 
