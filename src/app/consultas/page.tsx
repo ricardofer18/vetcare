@@ -385,13 +385,13 @@ export default function ConsultasPage() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-orange-600 flex items-center gap-2">
                       <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                      Consultas Pendientes
+                      Consultas en proceso
                     </h3>
                     
                     {filteredConsultas.filter(c => c.estado === 'Pendiente').length === 0 ? (
                       <Card>
                         <CardContent className="p-6 text-center">
-                          <p className="text-muted-foreground">No hay consultas pendientes</p>
+                          <p className="text-muted-foreground">No hay consultas en proceso</p>
                         </CardContent>
                       </Card>
                     ) : (
