@@ -627,26 +627,42 @@ export const getAllRolePermissions = async (): Promise<RolePermissions> => {
 export const createUserDirectly = async (
   email: string,
   displayName: string,
-  role: UserRole
+  role: UserRole,
+  password: string
 ): Promise<string> => {
   try {
-    // Generar un UID único (similar al formato de Firebase Auth)
-    const uid = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Importar las funciones de Firebase Auth dinámicamente para evitar problemas de SSR
+    const { createUserWithEmailAndPassword, updateProfile, signOut } = await import('firebase/auth');
+    const { auth } = await import('./firebase');
     
-    const userRef = doc(db, 'usuarios', uid);
+    // Guardar el usuario actual
+    const currentUser = auth.currentUser;
+    
+    // Crear el nuevo usuario con Firebase Auth
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const newUser = userCredential.user;
+
+    // Actualizar el displayName del nuevo usuario
+    await updateProfile(newUser, {
+      displayName: displayName
+    });
+
+    // Guardar información adicional en Firestore con rol
+    const userRef = doc(db, 'usuarios', newUser.uid);
     await setDoc(userRef, {
-      uid,
+      uid: newUser.uid,
       email,
       displayName,
       role,
       active: true,
       createdAt: new Date(),
-      lastLogin: new Date(),
-      // Marcar que este usuario necesita configurar su contraseña
-      needsPasswordSetup: true
+      lastLogin: new Date()
     });
+
+    // Cerrar sesión del nuevo usuario inmediatamente para no afectar la sesión del administrador
+    await signOut(auth);
     
-    return uid;
+    return newUser.uid;
   } catch (error) {
     console.error('Error al crear usuario directamente:', error);
     throw error;
