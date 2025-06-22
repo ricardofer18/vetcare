@@ -20,6 +20,8 @@ import { db } from './firebase';
 import { Patient, Dueno as Owner, Appointment, InventoryItem, UserRole, User, Permission, RolePermissions, ROLE_PERMISSIONS } from '../types';
 import { signOut } from 'firebase/auth';
 import { auth } from './firebase';
+import { getAuth } from 'firebase/auth';
+import { initializeApp } from 'firebase/app';
 
 // Funciones para Pacientes
 
@@ -623,7 +625,7 @@ export const getAllRolePermissions = async (): Promise<RolePermissions> => {
     return allPermissions;
 }
 
-// Nueva función para crear usuario directamente sin usar Firebase Auth
+// Nueva función para crear usuario usando la API route del servidor
 export const createUserDirectly = async (
   email: string,
   displayName: string,
@@ -631,26 +633,29 @@ export const createUserDirectly = async (
   password: string
 ): Promise<string> => {
   try {
-    // Importar las funciones de Firebase Auth dinámicamente para evitar problemas de SSR
-    const { createUserWithEmailAndPassword, updateProfile, signOut } = await import('firebase/auth');
-    const { auth } = await import('./firebase');
-    
-    // Guardar el usuario actual
-    const currentUser = auth.currentUser;
-    
-    // Crear el nuevo usuario con Firebase Auth
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const newUser = userCredential.user;
-
-    // Actualizar el displayName del nuevo usuario
-    await updateProfile(newUser, {
-      displayName: displayName
+    const response = await fetch('/api/users/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        displayName,
+        role,
+        password,
+      }),
     });
 
-    // Guardar información adicional en Firestore con rol
-    const userRef = doc(db, 'usuarios', newUser.uid);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al crear usuario');
+    }
+
+    // Guardar información adicional en Firestore
+    const userRef = doc(db, 'usuarios', data.uid);
     await setDoc(userRef, {
-      uid: newUser.uid,
+      uid: data.uid,
       email,
       displayName,
       role,
@@ -659,10 +664,7 @@ export const createUserDirectly = async (
       lastLogin: new Date()
     });
 
-    // Cerrar sesión del nuevo usuario inmediatamente para no afectar la sesión del administrador
-    await signOut(auth);
-    
-    return newUser.uid;
+    return data.uid;
   } catch (error) {
     console.error('Error al crear usuario directamente:', error);
     throw error;
