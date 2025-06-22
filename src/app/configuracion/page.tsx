@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { getAllRolePermissions, setRolePermissions } from '@/lib/firestore';
 import { useToast } from '@/components/ui/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { RouteGuard } from '@/components/RoleGuard';
 import { 
   Shield, 
   Stethoscope, 
@@ -195,118 +196,120 @@ export default function ConfiguracionPage() {
 
   // Vista para administradores
   return (
-    <div className="flex h-screen bg-background">
-      <div className="flex flex-col flex-1">
-        <Header title="Configuración" />
-        <main className="flex-1 p-6 overflow-y-auto bg-background">
-          <div className="max-w-6xl mx-auto space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Configuración del Sistema
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Gestiona los permisos para cada rol y tus preferencias personales.
-                </p>
-              </CardContent>
-            </Card>
+    <RouteGuard resource="configuracion" action="read">
+      <div className="flex h-screen bg-background">
+        <div className="flex flex-col flex-1">
+          <Header title="Configuración" />
+          <main className="flex-1 p-6 overflow-y-auto bg-background">
+            <div className="max-w-6xl mx-auto space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Configuración del Sistema
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">
+                    Gestiona los permisos para cada rol y tus preferencias personales.
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Tabs defaultValue="roles" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="roles" className="flex items-center gap-2"><Users className="h-4 w-4" />Sistema de Roles</TabsTrigger>
-                <TabsTrigger value="perfil" className="flex items-center gap-2"><User className="h-4 w-4" />Mi Perfil</TabsTrigger>
-                <TabsTrigger value="apariencia" className="flex items-center gap-2"><Settings className="h-4 w-4" />Apariencia</TabsTrigger>
-              </TabsList>
+              <Tabs defaultValue="roles" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="roles" className="flex items-center gap-2"><Users className="h-4 w-4" />Sistema de Roles</TabsTrigger>
+                  <TabsTrigger value="perfil" className="flex items-center gap-2"><User className="h-4 w-4" />Mi Perfil</TabsTrigger>
+                  <TabsTrigger value="apariencia" className="flex items-center gap-2"><Settings className="h-4 w-4" />Apariencia</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="roles" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <div className="flex justify-between items-center">
-                      <CardTitle>Sistema de Roles y Permisos</CardTitle>
-                      <Button onClick={handleSaveChanges} disabled={!hasChanges || isSaving}>
-                        {isSaving ? <LoadingSpinner size="sm" /> : <Save className="h-4 w-4 mr-2" />}
-                        {isSaving ? 'Guardando...' : 'Guardar Cambios'}
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {isLoading ? (
-                      <div className="flex justify-center items-center h-64">
-                        <LoadingSpinner size="lg" />
+                <TabsContent value="roles" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle>Sistema de Roles y Permisos</CardTitle>
+                        <Button onClick={handleSaveChanges} disabled={!hasChanges || isSaving}>
+                          {isSaving ? <LoadingSpinner size="sm" /> : <Save className="h-4 w-4 mr-2" />}
+                          {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+                        </Button>
                       </div>
-                    ) : (
-                      permissions && (
-                        <div className="grid gap-4">
-                          <div className="flex gap-2 border-b pb-4">
-                            <Button variant={selectedRole === 'admin' ? 'default' : 'outline'} onClick={() => setSelectedRole('admin')}><Shield className="h-4 w-4 mr-2" />Administrador</Button>
-                            <Button variant={selectedRole === 'veterinario' ? 'default' : 'outline'} onClick={() => setSelectedRole('veterinario')}><Stethoscope className="h-4 w-4 mr-2" />Veterinario</Button>
-                            <Button variant={selectedRole === 'secretaria' ? 'default' : 'outline'} onClick={() => setSelectedRole('secretaria')}><UserCheck className="h-4 w-4 mr-2" />Secretaria</Button>
+                    </CardHeader>
+                    <CardContent>
+                      {isLoading ? (
+                        <div className="flex justify-center items-center h-64">
+                          <LoadingSpinner size="lg" />
+                        </div>
+                      ) : (
+                        permissions && (
+                          <div className="grid gap-4">
+                            <div className="flex gap-2 border-b pb-4">
+                              <Button variant={selectedRole === 'admin' ? 'default' : 'outline'} onClick={() => setSelectedRole('admin')}><Shield className="h-4 w-4 mr-2" />Administrador</Button>
+                              <Button variant={selectedRole === 'veterinario' ? 'default' : 'outline'} onClick={() => setSelectedRole('veterinario')}><Stethoscope className="h-4 w-4 mr-2" />Veterinario</Button>
+                              <Button variant={selectedRole === 'secretaria' ? 'default' : 'outline'} onClick={() => setSelectedRole('secretaria')}><UserCheck className="h-4 w-4 mr-2" />Secretaria</Button>
+                            </div>
+                            <RoleInfo 
+                              role={selectedRole}
+                              permissions={permissions[selectedRole]}
+                              onPermissionChange={handlePermissionChange}
+                              isEditingDisabled={selectedRole === 'admin'}
+                            />
                           </div>
-                          <RoleInfo 
-                            role={selectedRole}
-                            permissions={permissions[selectedRole]}
-                            onPermissionChange={handlePermissionChange}
-                            isEditingDisabled={selectedRole === 'admin'}
-                          />
+                        )
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="perfil" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Información del Administrador</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 p-3 border rounded-lg">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">Email</p>
+                            <p className="text-sm text-muted-foreground">{user?.email || 'No disponible'}</p>
+                          </div>
                         </div>
-                      )
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="perfil" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Información del Administrador</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3 p-3 border rounded-lg">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">Email</p>
-                          <p className="text-sm text-muted-foreground">{user?.email || 'No disponible'}</p>
+                        
+                        <div className="flex items-center gap-3 p-3 border rounded-lg">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">ID de Usuario</p>
+                            <p className="text-sm text-muted-foreground">{user?.uid || 'No disponible'}</p>
+                          </div>
                         </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-3 p-3 border rounded-lg">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">ID de Usuario</p>
-                          <p className="text-sm text-muted-foreground">{user?.uid || 'No disponible'}</p>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center gap-3 p-3 border rounded-lg">
-                        <Shield className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">Rol</p>
-                          <p className="text-sm text-muted-foreground">Administrador</p>
+                        <div className="flex items-center gap-3 p-3 border rounded-lg">
+                          <Shield className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">Rol</p>
+                            <p className="text-sm text-muted-foreground">Administrador</p>
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-3 p-3 border rounded-lg">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">Fecha de Registro</p>
-                          <p className="text-sm text-muted-foreground">Información no disponible</p>
+                        <div className="flex items-center gap-3 p-3 border rounded-lg">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">Fecha de Registro</p>
+                            <p className="text-sm text-muted-foreground">Información no disponible</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              <TabsContent value="apariencia" className="space-y-4">
-                <ThemeToggle />
-              </TabsContent>
-            </Tabs>
-          </div>
-        </main>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                <TabsContent value="apariencia" className="space-y-4">
+                  <ThemeToggle />
+                </TabsContent>
+              </Tabs>
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </RouteGuard>
   );
 }

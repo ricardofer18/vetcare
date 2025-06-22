@@ -15,7 +15,7 @@ import OwnerDetailsModal from '../../components/OwnerDetailsModal';
 import { EditOwnerModal } from '../../components/EditOwnerModal';
 import { useToast } from '@/components/ui/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { DisabledButton } from '@/components/RoleGuard';
+import { DisabledButton, RouteGuard } from '@/components/RoleGuard';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 
 export default function DuenosClientesPage() {
@@ -134,7 +134,7 @@ export default function DuenosClientesPage() {
   };
 
   return (
-    <>
+    <RouteGuard resource="duenos" action="read">
       <div className="flex h-screen bg-background">
         <div className="flex flex-col flex-1">
           <Header title="Dueños / Clientes" />
@@ -251,6 +251,6 @@ export default function DuenosClientesPage() {
         onClose={handleCloseEditModal}
         onOwnerUpdated={handleOwnerUpdated}
       />
-    </>
+    </RouteGuard>
   );
 } 

@@ -14,7 +14,7 @@ import {
 import { InventoryItem } from '@/types';
 import { PlusCircle } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { DisabledButton } from '@/components/RoleGuard';
+import { DisabledButton, RouteGuard } from '@/components/RoleGuard';
 import { Header } from '@/components/Header';
 
 // Iconos SVG temporales (ejemplos)
@@ -136,7 +136,7 @@ export default function InventarioPage() {
   };
 
   return (
-    <>
+    <RouteGuard resource="inventario" action="read">
       <ProductFormModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -238,6 +238,6 @@ export default function InventarioPage() {
           </main>
         </div>
       </div>
-    </>
+    </RouteGuard>
   );
 } 

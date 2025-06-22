@@ -1,6 +1,6 @@
 "use client"
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { useAuth } from '../lib/auth';
 import { Button, ButtonProps } from './ui/button';
 import { Lock } from 'lucide-react';
@@ -28,6 +28,48 @@ export function RoleGuard({
   return <>{children}</>;
 }
 
+// --- ROUTE GUARD CON REDIRECCIÓN ---
+interface RouteGuardProps {
+  children: ReactNode;
+  resource: string;
+  action: string;
+  fallback?: ReactNode;
+}
+
+export function RouteGuard({ 
+  children, 
+  resource,
+  action,
+  fallback = (
+    <div className="flex items-center justify-center p-8">
+      <div className="text-center">
+        <h3 className="text-lg font-semibold text-muted-foreground mb-2">
+          Acceso Denegado
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          No tienes permisos para acceder a esta sección.
+        </p>
+      </div>
+    </div>
+  )
+}: RouteGuardProps) {
+  const { hasPermission, checkAndRedirectIfNoPermission } = useAuth();
+  const hasAccess = hasPermission(resource, action);
+
+  // Verificar permisos al montar el componente y cuando cambien los permisos
+  useEffect(() => {
+    // Solo verificar redirección si el usuario no tiene acceso
+    if (!hasAccess) {
+      checkAndRedirectIfNoPermission(resource, action);
+    }
+  }, [resource, action, hasAccess, checkAndRedirectIfNoPermission]);
+
+  if (!hasAccess) {
+    return fallback;
+  }
+
+  return <>{children}</>;
+}
 
 // --- COMPONENTES DE CONVENIENCIA (VISIBILIDAD) ---
 interface PermissionProps {

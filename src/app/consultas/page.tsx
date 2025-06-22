@@ -17,10 +17,8 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { EditarConsultaModal } from '@/components/consultas/EditarConsultaModal';
 import { 
   CanCreateConsultas, 
-  CanEditMedicalData, 
-  DisabledCreateConsultas,
-  DisabledEditMedicalData,
-  DisabledButton
+  DisabledButton,
+  RouteGuard
 } from '@/components/RoleGuard';
 
 export default function ConsultasPage() {
@@ -252,10 +250,10 @@ export default function ConsultasPage() {
   };
 
   return (
-    <>
+    <RouteGuard resource="consultas" action="read">
       <div className="flex h-screen bg-background">
         <div className="flex flex-col flex-1">
-          <Header title="Consultas" />
+          <Header title="Gestión de Consultas" />
           
           <main className="flex-1 p-6 overflow-y-auto bg-background space-y-6">
             {/* Sección de Citas Agendadas - Visible para todos pero con elementos desactivados */}
@@ -527,6 +525,6 @@ export default function ConsultasPage() {
           />
         </>
       )}
-    </>
+    </RouteGuard>
   );
 } 

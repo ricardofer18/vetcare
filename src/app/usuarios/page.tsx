@@ -16,7 +16,7 @@ import { EditUserModal } from '@/components/EditUserModal';
 import { PlusCircle } from 'lucide-react';
 import { UserCard } from '@/components/UserCard';
 import { UserRole } from '@/types';
-import { DisabledButton } from '@/components/RoleGuard';
+import { DisabledButton, RouteGuard } from '@/components/RoleGuard';
 
 interface Usuario {
   uid: string;
@@ -118,7 +118,7 @@ export default function UsuariosPage() {
   });
 
   return (
-    <>
+    <RouteGuard resource="usuarios" action="read">
       <CreateUserModal 
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
@@ -181,6 +181,6 @@ export default function UsuariosPage() {
           </main>
         </div>
       </div>
-    </>
+    </RouteGuard>
   );
 } 

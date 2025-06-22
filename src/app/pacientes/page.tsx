@@ -14,7 +14,7 @@ import { PatientHistoryModal } from '@/components/PatientHistoryModal';
 import { EditPatientModal } from '@/components/EditPatientModal';
 import { PatientDetailsModal } from '@/components/PatientDetailsModal';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { DisabledButton } from '@/components/RoleGuard';
+import { DisabledButton, RouteGuard } from '@/components/RoleGuard';
 
 export default function PacientesPage() {
   const [pacientes, setPacientes] = useState<Patient[]>([]);
@@ -120,7 +120,7 @@ export default function PacientesPage() {
   };
 
   return (
-    <>
+    <RouteGuard resource="pacientes" action="read">
       <div className="flex h-screen bg-background">
         <div className="flex flex-col flex-1">
           <Header title="Gestión de Pacientes" />
@@ -282,6 +282,6 @@ export default function PacientesPage() {
           />
         </>
       )}
-    </>
+    </RouteGuard>
   );
 } 

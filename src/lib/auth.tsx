@@ -77,6 +77,7 @@ interface AuthContextType {
   signOut: () => Promise<void>
   hasPermission: (resource: string, action: string) => boolean
   userRole: UserRole | null
+  checkAndRedirectIfNoPermission: (resource: string, action: string) => void
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -85,6 +86,7 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
   hasPermission: () => false,
   userRole: null,
+  checkAndRedirectIfNoPermission: () => {},
 })
 
 interface AuthProviderProps {
@@ -204,12 +206,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return hasAccess;
   };
 
+  const checkAndRedirectIfNoPermission = (resource: string, action: string): void => {
+    console.log(`[checkAndRedirectIfNoPermission] Verificando redirección para: ${resource}:${action}`);
+    
+    // Si es un permiso de lectura y el usuario no lo tiene, redirigir al dashboard
+    if (action === 'read' && !hasPermission(resource, action)) {
+      console.log(`[checkAndRedirectIfNoPermission] Redirigiendo al dashboard - sin permiso de lectura para ${resource}`);
+      router.push('/dashboard');
+    }
+  };
+
   const value = {
     user,
     loading,
     signOut,
     hasPermission,
     userRole: user?.role || null,
+    checkAndRedirectIfNoPermission,
   }
 
   return (
