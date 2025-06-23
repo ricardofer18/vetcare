@@ -57,8 +57,37 @@ export const updatePatient = async (ownerId: string, patientId: string, patient:
 };
 
 export const deletePatient = async (ownerId: string, patientId: string): Promise<void> => {
-  const docRef = doc(db, 'duenos', ownerId, 'mascotas', patientId);
-  await deleteDoc(docRef);
+  try {
+    const batch = writeBatch(db);
+    
+    // 1. Obtener y eliminar todas las citas relacionadas con esta mascota
+    const appointmentsQuery = query(appointmentsCollection, where('patientId', '==', patientId));
+    const appointmentsSnapshot = await getDocs(appointmentsQuery);
+    
+    appointmentsSnapshot.docs.forEach(appointmentDoc => {
+      batch.delete(appointmentDoc.ref);
+    });
+    
+    // 2. Obtener y eliminar todas las consultas de la mascota
+    const consultasRef = collection(db, 'duenos', ownerId, 'mascotas', patientId, 'consultas');
+    const consultasSnapshot = await getDocs(consultasRef);
+    
+    consultasSnapshot.docs.forEach(consultaDoc => {
+      batch.delete(consultaDoc.ref);
+    });
+    
+    // 3. Eliminar la mascota
+    const patientDocRef = doc(db, 'duenos', ownerId, 'mascotas', patientId);
+    batch.delete(patientDocRef);
+    
+    // 4. Ejecutar todas las operaciones en una sola transacción
+    await batch.commit();
+    
+    console.log(`Mascota ${patientId} del dueño ${ownerId}, sus ${consultasSnapshot.size} consultas y ${appointmentsSnapshot.size} citas eliminados exitosamente`);
+  } catch (error) {
+    console.error('Error deleting patient and related data:', error);
+    throw error;
+  }
 };
 
 // Funciones para Citas
@@ -284,10 +313,47 @@ export const updateOwner = async (id: string, owner: Partial<Owner>): Promise<vo
 
 export const deleteOwner = async (id: string): Promise<void> => {
   try {
-    const docRef = doc(ownersCollection, id);
-    await deleteDoc(docRef);
+    const batch = writeBatch(db);
+    
+    // 1. Obtener y eliminar todas las citas relacionadas con este dueño
+    const appointmentsQuery = query(appointmentsCollection, where('ownerId', '==', id));
+    const appointmentsSnapshot = await getDocs(appointmentsQuery);
+    
+    appointmentsSnapshot.docs.forEach(appointmentDoc => {
+      batch.delete(appointmentDoc.ref);
+    });
+    
+    // 2. Obtener todas las mascotas del dueño
+    const petsSubcollectionRef = collection(db, 'duenos', id, 'mascotas');
+    const petsSnapshot = await getDocs(petsSubcollectionRef);
+    
+    // 3. Para cada mascota, eliminar sus consultas y luego la mascota
+    for (const petDoc of petsSnapshot.docs) {
+      const petId = petDoc.id;
+      
+      // Obtener todas las consultas de la mascota
+      const consultasRef = collection(db, 'duenos', id, 'mascotas', petId, 'consultas');
+      const consultasSnapshot = await getDocs(consultasRef);
+      
+      // Eliminar todas las consultas de la mascota
+      consultasSnapshot.docs.forEach(consultaDoc => {
+        batch.delete(consultaDoc.ref);
+      });
+      
+      // Eliminar la mascota
+      batch.delete(petDoc.ref);
+    }
+    
+    // 4. Eliminar el dueño
+    const ownerDocRef = doc(ownersCollection, id);
+    batch.delete(ownerDocRef);
+    
+    // 5. Ejecutar todas las operaciones en una sola transacción
+    await batch.commit();
+    
+    console.log(`Dueño ${id}, sus ${petsSnapshot.size} mascotas, ${appointmentsSnapshot.size} citas y todas sus consultas eliminados exitosamente`);
   } catch (error) {
-    console.error('Error deleting owner:', error);
+    console.error('Error deleting owner and related data:', error);
     throw error;
   }
 };
@@ -307,40 +373,47 @@ export const getPatientsByOwnerId = async (ownerId: string): Promise<Patient[]> 
   }
 };
 
-// Función para inicializar datos de pacientes de ejemplo
+// Función para inicializar datos de pacientes de ejemplo (solo usar cuando sea necesario)
 export const initializeSamplePatients = async (): Promise<void> => {
-  const ownersRef = collection(db, 'duenos');
-  const ownersSnapshot = await getDocs(ownersRef);
+  try {
+    const ownersRef = collection(db, 'duenos');
+    const ownersSnapshot = await getDocs(ownersRef);
 
-  if (ownersSnapshot.empty) {
-    console.log("No hay dueños, creando uno de ejemplo...");
-    const newOwnerData = {
-      nombre: 'Ricardo',
-      apellido: 'Saavedra',
-      rut: '21.758.535-k',
-      email: 'ricardo@example.com',
-      telefono: '+56987654321',
-      direccion: 'Calle Falsa 123, Santiago'
-    };
-    const ownerDocRef = await addDoc(ownersRef, newOwnerData);
-    
-    const samplePatients = [
-      { 
-        nombre: 'elvistek', 
-        especie: 'Perro', 
-        raza: 'Pug', 
-        edad: 12, 
-        sexo: 'Macho',
-        duenoId: ownerDocRef.id // <- Campo requerido añadido
-      },
-      // ... más pacientes de ejemplo si es necesario
-    ];
+    if (ownersSnapshot.empty) {
+      console.log("No hay dueños, creando uno de ejemplo...");
+      const newOwnerData = {
+        nombre: 'Ricardo',
+        apellido: 'Saavedra',
+        rut: '21.758.535-k',
+        email: 'ricardo@example.com',
+        telefono: '+56987654321',
+        direccion: 'Calle Falsa 123, Santiago'
+      };
+      const ownerDocRef = await addDoc(ownersRef, newOwnerData);
+      
+      const samplePatients = [
+        { 
+          nombre: 'elvistek', 
+          especie: 'Perro', 
+          raza: 'Pug', 
+          edad: 12, 
+          sexo: 'Macho',
+          duenoId: ownerDocRef.id
+        },
+        // ... más pacientes de ejemplo si es necesario
+      ];
 
-    for (const patientData of samplePatients) {
-      const petsSubcollectionRef = collection(db, 'duenos', ownerDocRef.id, 'mascotas');
-      await addDoc(petsSubcollectionRef, patientData);
+      for (const patientData of samplePatients) {
+        const petsSubcollectionRef = collection(db, 'duenos', ownerDocRef.id, 'mascotas');
+        await addDoc(petsSubcollectionRef, patientData);
+      }
+      console.log("Dueño y mascotas de ejemplo creados exitosamente.");
+    } else {
+      console.log("Ya existen dueños en la base de datos. No se crearán datos de ejemplo.");
     }
-    console.log("Dueño y mascotas de ejemplo creados.");
+  } catch (error) {
+    console.error("Error al inicializar datos de ejemplo:", error);
+    throw error;
   }
 };
 
@@ -697,6 +770,51 @@ export const createUserDirectly = async (
       }
     }
     
+    throw error;
+  }
+};
+
+// Función para crear datos de ejemplo de manera controlada (solo usar cuando se solicite explícitamente)
+export const createSampleData = async (): Promise<void> => {
+  try {
+    console.log("Creando datos de ejemplo...");
+    const newOwnerData = {
+      nombre: 'Ricardo',
+      apellido: 'Saavedra',
+      rut: '21.758.535-k',
+      email: 'ricardo@example.com',
+      telefono: '+56987654321',
+      direccion: 'Calle Falsa 123, Santiago'
+    };
+    
+    const ownerDocRef = await addDoc(collection(db, 'duenos'), newOwnerData);
+    
+    const samplePatients = [
+      { 
+        nombre: 'elvistek', 
+        especie: 'Perro', 
+        raza: 'Pug', 
+        edad: 12, 
+        sexo: 'Macho',
+        duenoId: ownerDocRef.id
+      },
+      { 
+        nombre: 'Luna', 
+        especie: 'Gato', 
+        raza: 'Siamés', 
+        edad: 5, 
+        sexo: 'Hembra',
+        duenoId: ownerDocRef.id
+      }
+    ];
+
+    for (const patientData of samplePatients) {
+      const petsSubcollectionRef = collection(db, 'duenos', ownerDocRef.id, 'mascotas');
+      await addDoc(petsSubcollectionRef, patientData);
+    }
+    console.log("Datos de ejemplo creados exitosamente.");
+  } catch (error) {
+    console.error("Error al crear datos de ejemplo:", error);
     throw error;
   }
 }; 

@@ -145,16 +145,6 @@ export default function PacientesPage() {
                   </Button>
                 )}
               </div>
-              <DisabledButton
-                resource="pacientes"
-                action="create"
-                onClick={() => {/* TODO: Implementar modal de nuevo paciente */}}
-                className="h-9 sm:h-11 px-3 sm:px-6 text-sm sm:text-base font-medium hover:scale-105 transition-all duration-200 cursor-pointer hover:shadow-lg"
-                tooltip="Agregar nuevo paciente"
-              >
-                <span className="hidden sm:inline">Agregar Paciente</span>
-                <span className="sm:hidden">Agregar</span>
-              </DisabledButton>
             </div>
 
               {isLoading ? (

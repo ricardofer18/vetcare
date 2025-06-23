@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Header } from '@/components/Header';
 import OwnerTable from '../../components/OwnerTable';
-import { getOwners, deleteOwner, initializeSamplePatients } from '../../lib/firestore';
+import { getOwners, deleteOwner } from '../../lib/firestore';
 import { Owner } from '@/types';
 import OwnerDetailsModal from '../../components/OwnerDetailsModal';
 import { EditOwnerModal } from '../../components/EditOwnerModal';
@@ -38,9 +38,6 @@ export default function DuenosClientesPage() {
       setError(null);
       const firestoreOwners = await getOwners();
       setOwners(firestoreOwners);
-      
-      // Inicializar mascotas de ejemplo si es necesario
-      await initializeSamplePatients();
       
     } catch (err) {
       setError(`Error al cargar dueños: ${err instanceof Error ? err.message : 'Error desconocido'}`);
@@ -83,7 +80,12 @@ export default function DuenosClientesPage() {
 
     const confirmDelete = window.confirm(
       `¿Estás seguro de que quieres eliminar al dueño "${ownerToDelete.nombre} ${ownerToDelete.apellido}"?\n\n` +
-      `Esta acción también eliminará todas las mascotas asociadas a este dueño y no se puede deshacer.`
+      `Esta acción eliminará:\n` +
+      `• El dueño y toda su información\n` +
+      `• Todas las mascotas asociadas\n` +
+      `• Todas las consultas médicas de las mascotas\n` +
+      `• Todas las citas agendadas\n\n` +
+      `Esta acción no se puede deshacer.`
     );
 
     if (confirmDelete) {
@@ -93,7 +95,7 @@ export default function DuenosClientesPage() {
         
         toast({
           title: "Dueño eliminado",
-          description: `El dueño "${ownerToDelete.nombre} ${ownerToDelete.apellido}" ha sido eliminado exitosamente.`,
+          description: `El dueño "${ownerToDelete.nombre} ${ownerToDelete.apellido}" y todos sus datos relacionados han sido eliminados exitosamente.`,
         });
 
         // Recargar la lista de dueños
@@ -109,7 +111,7 @@ export default function DuenosClientesPage() {
         setLoading(false);
       }
     }
-    };
+  };
 
   // Filtrar dueños basado en el término de búsqueda
   const ownersFiltrados = owners.filter(owner => {
@@ -157,16 +159,6 @@ export default function DuenosClientesPage() {
                     Limpiar
                   </Button>
                 )}
-                <DisabledButton
-                  resource="duenos"
-                  action="create"
-                  onClick={() => {/* TODO: Implementar modal de nuevo dueño */}}
-                  className="h-9 sm:h-11 px-3 sm:px-6 text-sm sm:text-base font-medium hover:scale-105 transition-all duration-200 cursor-pointer hover:shadow-lg"
-                  tooltip="Agregar nuevo dueño"
-                >
-                  <span className="hidden sm:inline">Agregar Dueño</span>
-                  <span className="sm:hidden">Agregar</span>
-                </DisabledButton>
               </div>
             </div>
 
