@@ -8,6 +8,7 @@ import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Patient, Consulta } from '@/types';
 import { Calendar, Clock, FileText, User } from 'lucide-react';
+import { formatearEdad } from '@/lib/utils';
 
 interface PatientHistoryModalProps {
   isOpen: boolean;
@@ -62,7 +63,8 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
           diagnostico: data.diagnostico,
           tratamiento: data.tratamiento,
           proximaCita: data.proximaCita?.toDate(),
-          veterinario: data.veterinario
+          veterinario: data.veterinario,
+          estado: data.estado || 'Realizada'
         });
       });
       
@@ -111,7 +113,7 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
                 </div>
                 <div>
                   <span className="text-muted-foreground">Edad:</span>
-                  <p className="font-medium">{paciente.edad} años</p>
+                  <p className="font-medium">{formatearEdad(paciente.edad, paciente.fechaNacimiento)}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Dueño:</span>

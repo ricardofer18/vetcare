@@ -31,7 +31,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   {
     href: "/dashboard",
-    title: "Dashboard",
+    title: "Gestión de Veterinaria",
     icon: Home,
     resource: 'dashboard'
   },

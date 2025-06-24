@@ -33,8 +33,8 @@ const roleNames = {
   secretaria: 'Secretaria',
 };
 
-const resourceNames: { [key: string]: string } = {
-  dashboard: 'Dashboard',
+const resourceNames: Record<string, string> = {
+  dashboard: 'Gestión de Veterinaria',
   usuarios: 'Usuarios',
   pacientes: 'Pacientes',
   duenos: 'Dueños',

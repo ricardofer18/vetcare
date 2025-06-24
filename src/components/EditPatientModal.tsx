@@ -15,6 +15,7 @@ import { Save, X, Sparkles } from 'lucide-react';
 import { AITextarea } from '@/components/ui/ai-textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DisabledButton } from '@/components/RoleGuard';
+import { calcularEdad, formatearEdad } from '@/lib/utils';
 
 interface EditPatientModalProps {
   isOpen: boolean;
@@ -58,6 +59,19 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({
       });
     }
   }, [paciente]);
+
+  // Calcular edad automáticamente cuando cambia la fecha de nacimiento
+  useEffect(() => {
+    if (formData.fechaNacimiento) {
+      const edadCalculada = calcularEdad(formData.fechaNacimiento);
+      if (edadCalculada !== null) {
+        setFormData(prev => ({
+          ...prev,
+          edad: edadCalculada
+        }));
+      }
+    }
+  }, [formData.fechaNacimiento]);
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData(prev => ({
@@ -113,6 +127,10 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({
     }
   };
 
+  // Calcular edad para mostrar en el campo
+  const edadCalculada = formData.fechaNacimiento ? calcularEdad(formData.fechaNacimiento) : null;
+  const mostrarEdad = edadCalculada !== null ? edadCalculada : formData.edad;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh]">
@@ -156,15 +174,37 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({
               </div>
               
               <div>
+                <Label htmlFor="fechaNacimiento">Fecha de Nacimiento</Label>
+                <Input
+                  id="fechaNacimiento"
+                  type="date"
+                  value={formData.fechaNacimiento}
+                  onChange={(e) => handleInputChange('fechaNacimiento', e.target.value)}
+                />
+                {formData.fechaNacimiento && edadCalculada !== null && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Edad calculada: {edadCalculada} años
+                  </p>
+                )}
+              </div>
+              
+              <div>
                 <Label htmlFor="edad">Edad (años) *</Label>
                 <Input
                   id="edad"
                   type="number"
                   min="0"
-                  value={formData.edad}
+                  value={mostrarEdad}
                   onChange={(e) => handleInputChange('edad', Number(e.target.value))}
                   required
+                  readOnly={Boolean(formData.fechaNacimiento && edadCalculada !== null)}
+                  className={formData.fechaNacimiento && edadCalculada !== null ? 'bg-muted cursor-not-allowed' : ''}
                 />
+                {formData.fechaNacimiento && edadCalculada !== null && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    La edad se calcula automáticamente desde la fecha de nacimiento
+                  </p>
+                )}
               </div>
               
               <div>
@@ -176,16 +216,6 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({
                   min="0"
                   value={formData.peso}
                   onChange={(e) => handleInputChange('peso', Number(e.target.value))}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="fechaNacimiento">Fecha de Nacimiento</Label>
-                <Input
-                  id="fechaNacimiento"
-                  type="date"
-                  value={formData.fechaNacimiento}
-                  onChange={(e) => handleInputChange('fechaNacimiento', e.target.value)}
                 />
               </div>
               

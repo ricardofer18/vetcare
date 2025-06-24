@@ -145,6 +145,41 @@ Responde solo con las observaciones, sin explicaciones adicionales.`;
   return await callDeepSeekAPI(prompt);
 }
 
+// Función para obtener sugerencias de IA para descripciones de productos
+export async function getProductDescriptionSuggestion(
+  currentText: string,
+  productInfo: {
+    name: string;
+    category: string;
+    price?: number;
+    supplier?: string;
+  }
+): Promise<AISuggestionResponse> {
+  const prompt = `Eres un veterinario experto en inventario y productos veterinarios. Basándote en la siguiente información del producto, genera una descripción profesional y detallada:
+
+PRODUCTO:
+- Nombre: ${productInfo.name}
+- Categoría: ${productInfo.category}
+- Precio: ${productInfo.price ? `$${productInfo.price}` : 'No especificado'}
+- Proveedor: ${productInfo.supplier || 'No especificado'}
+
+DESCRIPCIÓN ACTUAL: ${currentText || 'Ninguna registrada'}
+
+Genera una descripción profesional que incluya:
+- Composición o ingredientes principales (si aplica)
+- Indicaciones y usos veterinarios
+- Forma de administración o aplicación
+- Precauciones y contraindicaciones
+- Almacenamiento y conservación
+- Información adicional relevante para el personal veterinario
+
+La descripción debe ser técnica pero comprensible, específica para productos veterinarios de la categoría ${productInfo.category}.
+
+Responde solo con la descripción, sin explicaciones adicionales.`;
+
+  return await callDeepSeekAPI(prompt);
+}
+
 // Función principal para llamar a la API de DeepSeek
 async function callDeepSeekAPI(prompt: string): Promise<AISuggestionResponse> {
   if (!DEEPSEEK_API_KEY) {

@@ -14,6 +14,8 @@ import { ConsultaForm } from './ConsultaForm';
 import { DuenoForm } from './DuenoForm';
 import { Patient, Dueno, MascotaInput, ConsultaFormData, Appointment } from '@/types';
 import { toast } from '@/components/ui/use-toast';
+import { updateInventoryItem } from '@/lib/firestore';
+import { createDateFromString, createDateForFirestore, debugDateHandling } from '@/lib/utils';
 
 interface NuevaConsultaModalProps {
   isOpen: boolean;
@@ -199,20 +201,9 @@ export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated, selecte
       setDuenoData(nuevoDueno);
       setMascotasDueno([]);
       setMostrarFormDueno(false);
-      setRut(duenoInput.rut);
-
-      toast({
-        title: "Dueño creado",
-        description: "El dueño se ha creado exitosamente",
-      });
     } catch (error) {
       console.error('Error al crear dueño:', error);
       setError('Error al crear el dueño');
-      toast({
-        title: "Error",
-        description: "No se pudo crear el dueño",
-        variant: "destructive"
-      });
     } finally {
       setIsLoading(false);
     }
@@ -225,11 +216,14 @@ export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated, selecte
   };
 
   const handleMascotaCreated = async (mascotaInput: MascotaInput) => {
-    if (!duenoData) return;
-    
     try {
       setIsLoading(true);
       setError(null);
+
+      if (!duenoData) {
+        setError('No hay dueño seleccionado');
+        return;
+      }
 
       // Guardar la mascota en la subcolección del dueño
       const mascotasRef = collection(db, `duenos/${duenoData.id}/mascotas`);
@@ -239,7 +233,8 @@ export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated, selecte
         ...mascotaInput,
         id: mascotaDoc.id,
         duenoId: duenoData.id,
-        dueno: duenoData
+        dueno: duenoData,
+        edad: mascotaInput.edad || 0 // Asegurar que edad sea siempre un valor válido
       };
 
       setMascotasDueno(prev => [...prev, nuevaMascota]);
@@ -258,16 +253,45 @@ export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated, selecte
       setIsLoading(true);
       const consultaRef = collection(db, `duenos/${duenoData?.id}/mascotas/${mascotaData?.id}/consultas`);
       
+      // Determinar la fecha de la consulta
+      let fechaConsulta: Date;
+      if (selectedAppointment) {
+        // Debug: verificar el manejo de fechas
+        debugDateHandling(selectedAppointment.date, selectedAppointment.time);
+        
+        // Si hay una cita agendada, usar su fecha y hora
+        // Usar createDateForFirestore para evitar problemas de zona horaria
+        fechaConsulta = createDateForFirestore(selectedAppointment.date, selectedAppointment.time);
+        
+        console.log('Fecha de cita original:', selectedAppointment.date, selectedAppointment.time);
+        console.log('Fecha creada para Firestore:', fechaConsulta.toISOString());
+        console.log('Fecha local formateada:', fechaConsulta.toLocaleString('es-ES'));
+      } else {
+        // Si no hay cita agendada, usar la fecha actual
+        fechaConsulta = new Date();
+      }
+      
       // Crear la consulta con estado "Pendiente" por defecto
       const consultaData = {
         ...data,
         veterinarioId: user?.uid,
-        fecha: new Date(),
+        fecha: fechaConsulta,
         estado: 'Pendiente' as const,
         proximaCita: data.proximaCita ? new Date(data.proximaCita) : null
       };
       
       await addDoc(consultaRef, consultaData);
+
+      // Actualizar stock de los artículos usados
+      if (Array.isArray(data.articulosUsados)) {
+        for (const articulo of data.articulosUsados) {
+          try {
+            await updateInventoryItem(articulo.id, { quantity: (articulo.stock !== undefined ? articulo.stock : 0) - articulo.quantity });
+          } catch (err) {
+            console.error('Error al actualizar stock del artículo:', articulo.id, err);
+          }
+        }
+      }
       
       // Si hay una cita agendada seleccionada, actualizar su estado y datos
       if (selectedAppointment) {
@@ -293,7 +317,7 @@ export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated, selecte
       
       toast({
         title: "Consulta creada",
-        description: "La consulta se ha creado correctamente como pendiente",
+        description: "La consulta se ha creado correctamente como pendiente y el stock ha sido actualizado",
       });
       onClose();
       onConsultaCreated();
@@ -497,4 +521,4 @@ export function NuevaConsultaModal({ isOpen, onClose, onConsultaCreated, selecte
       </DialogContent>
     </Dialog>
   );
-} 
+}

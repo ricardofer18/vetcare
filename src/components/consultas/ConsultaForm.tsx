@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Patient, ConsultaFormData } from '@/types';
+import { Patient, ConsultaFormData, InventoryItem } from '@/types';
 import { AITextarea } from '@/components/ui/ai-textarea';
 import {
   Form,
@@ -17,6 +17,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { getInventoryItems } from '@/lib/firestore';
+import { ProductDetailsModal } from '@/components/ProductDetailsModal';
+import { Eye } from 'lucide-react';
 
 const formSchema = z.object({
   motivo: z.string().min(1, 'El motivo es requerido'),
@@ -34,6 +37,52 @@ interface ConsultaFormProps {
 export function ConsultaForm({ mascota, onConsultaCreated }: ConsultaFormProps) {
   const [showProximaCita, setShowProximaCita] = useState(false);
 
+  // Inventario
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [selectedItems, setSelectedItems] = useState<{ id: string; quantity: number }[]>([]);
+  const [consultaCost, setConsultaCost] = useState<number>(0);
+  const [modalProduct, setModalProduct] = useState<InventoryItem | null>(null);
+  const [cantidadWarning, setCantidadWarning] = useState<{ [id: string]: boolean }>({});
+
+  useEffect(() => {
+    getInventoryItems().then(setInventory);
+  }, []);
+
+  // Calcular totales
+  const selectedProducts = selectedItems
+    .map(sel => {
+      const prod = inventory.find(p => p.id === sel.id);
+      return prod ? { ...prod, quantityUsed: sel.quantity } : null;
+    })
+    .filter(Boolean) as (InventoryItem & { quantityUsed: number })[];
+
+  const totalArticulos = selectedProducts.reduce((acc, item) => acc + (item.price * item.quantityUsed), 0);
+  const totalConsulta = consultaCost + totalArticulos;
+
+  // Manejo de selección y cantidad
+  const handleToggleProduct = (id: string) => {
+    if (selectedItems.some(item => item.id === id)) {
+      setSelectedItems(selectedItems.filter(item => item.id !== id));
+    } else {
+      setSelectedItems([...selectedItems, { id, quantity: 1 }]);
+    }
+  };
+  const handleRemoveProduct = (id: string) => {
+    setSelectedItems(selectedItems.filter(item => item.id !== id));
+  };
+  const handleChangeQuantity = (id: string, quantity: number) => {
+    const product = inventory.find(p => p.id === id);
+    if (!product) return;
+    let newQuantity = Math.max(1, quantity);
+    let warning = false;
+    if (newQuantity > product.quantity) {
+      newQuantity = product.quantity;
+      warning = true;
+    }
+    setCantidadWarning(prev => ({ ...prev, [id]: warning }));
+    setSelectedItems(selectedItems.map(item => item.id === id ? { ...item, quantity: newQuantity } : item));
+  };
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -46,7 +95,12 @@ export function ConsultaForm({ mascota, onConsultaCreated }: ConsultaFormProps) 
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    onConsultaCreated(values);
+    onConsultaCreated({
+      ...values,
+      articulosUsados: selectedProducts.map(item => ({ id: item.id, name: item.name, quantity: item.quantityUsed, price: item.price, stock: item.quantity })),
+      costoConsulta: consultaCost,
+      totalConsulta,
+    });
   }
 
   return (
@@ -208,6 +262,123 @@ export function ConsultaForm({ mascota, onConsultaCreated }: ConsultaFormProps) 
               )}
             />
           )}
+
+          {/* Selección de artículos del inventario como cards */}
+          <div>
+            <FormLabel>Artículos del Inventario usados</FormLabel>
+            <div className="max-h-64 overflow-auto border rounded-md p-2 bg-muted mb-2 custom-scrollbar">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {inventory.map(product => {
+                  const selected = selectedItems.some(item => item.id === product.id);
+                  const selectedItem = selectedItems.find(item => item.id === product.id);
+                  return (
+                    <div
+                      key={product.id}
+                      className={`border rounded-lg p-3 shadow-sm bg-white dark:bg-card cursor-pointer transition-all relative flex flex-col ${selected ? 'ring-2 ring-primary' : 'hover:ring-1 hover:ring-primary/50'}`}
+                      onClick={() => handleToggleProduct(product.id)}
+                    >
+                      {product.image && (
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="w-full h-24 object-contain mb-2 rounded"
+                        />
+                      )}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-semibold text-base truncate">{product.name}</div>
+                        <button
+                          type="button"
+                          className="text-primary hover:underline ml-2"
+                          onClick={e => { e.stopPropagation(); setModalProduct(product); }}
+                          title="Ver detalles"
+                        >
+                          <Eye className="w-4 h-4 inline" />
+                        </button>
+                      </div>
+                      <div className="text-xs text-muted-foreground mb-1">Categoría: {product.category}</div>
+                      <div className="text-xs text-muted-foreground mb-1">Stock: {product.quantity}</div>
+                      <div className="text-xs text-muted-foreground mb-1">Precio: ${product.price}</div>
+                      {selected && (
+                        <div className="mt-2 flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs" htmlFor={`cantidad-${product.id}`}>Cantidad:</label>
+                            <input
+                              id={`cantidad-${product.id}`}
+                              type="number"
+                              min={1}
+                              max={product.quantity}
+                              value={selectedItem?.quantity || 1}
+                              onChange={e => { e.stopPropagation(); handleChangeQuantity(product.id, Number(e.target.value)); }}
+                              className="w-16 border rounded px-1 py-0.5 text-center"
+                              onClick={e => e.stopPropagation()}
+                              aria-label="Cantidad"
+                              title="Cantidad"
+                            />
+                          </div>
+                          {cantidadWarning[product.id] && (
+                            <span className="text-xs text-red-500">No puedes añadir más que el stock disponible.</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {selectedProducts.length > 0 && (
+              <div className="border rounded-md p-2 bg-muted">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th className="text-left">Artículo</th>
+                      <th className="text-center">Cantidad</th>
+                      <th className="text-center">Precio</th>
+                      <th className="text-center">Subtotal</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedProducts.map(item => (
+                      <tr key={item.id}>
+                        <td>{item.name}</td>
+                        <td className="text-center">{item.quantityUsed}</td>
+                        <td className="text-center">${item.price}</td>
+                        <td className="text-center">${item.price * item.quantityUsed}</td>
+                        <td className="text-center">
+                          <button type="button" onClick={() => handleRemoveProduct(item.id)} className="text-red-500 hover:underline">Quitar</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="text-right font-semibold mt-2">Total artículos: ${totalArticulos}</div>
+              </div>
+            )}
+            {modalProduct && (
+              <ProductDetailsModal
+                isOpen={!!modalProduct}
+                onClose={() => setModalProduct(null)}
+                product={modalProduct}
+              />
+            )}
+          </div>
+
+          {/* Costo de la consulta */}
+          <div>
+            <FormLabel>Costo de la consulta</FormLabel>
+            <Input
+              type="number"
+              min={0}
+              value={consultaCost}
+              onChange={e => setConsultaCost(Number(e.target.value))}
+              placeholder="Costo de la consulta"
+            />
+          </div>
+
+          {/* Total */}
+          <div className="text-right text-lg font-bold">
+            Total a cobrar: ${totalConsulta}
+          </div>
         </div>
 
         <Button type="submit" className="w-full">
@@ -216,4 +387,21 @@ export function ConsultaForm({ mascota, onConsultaCreated }: ConsultaFormProps) 
       </form>
     </Form>
   );
-} 
+}
+
+/* Estilos para la barra de scroll personalizada */
+<style jsx global>{`
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    background: #222831;
+    border-radius: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #666b7a;
+    border-radius: 8px;
+  }
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #666b7a #222831;
+  }
+`}</style> 

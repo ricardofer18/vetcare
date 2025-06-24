@@ -358,6 +358,18 @@ export const deleteOwner = async (id: string): Promise<void> => {
   }
 };
 
+// Función para eliminar consultas
+export const deleteConsulta = async (duenoId: string, mascotaId: string, consultaId: string): Promise<void> => {
+  try {
+    const consultaRef = doc(db, 'duenos', duenoId, 'mascotas', mascotaId, 'consultas', consultaId);
+    await deleteDoc(consultaRef);
+    console.log('Consulta eliminada:', consultaId);
+  } catch (error) {
+    console.error('Error al eliminar consulta:', error);
+    throw error;
+  }
+};
+
 // Función para obtener las mascotas de un dueño específico
 export const getPatientsByOwnerId = async (ownerId: string): Promise<Patient[]> => {
   try {

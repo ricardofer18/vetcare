@@ -16,6 +16,7 @@ import { PlusCircle } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { DisabledButton, RouteGuard } from '@/components/RoleGuard';
 import { Header } from '@/components/Header';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 // Iconos SVG temporales (ejemplos)
 const MedicationIcon = (
@@ -60,6 +61,8 @@ export default function InventarioPage() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [productToEdit, setProductToEdit] = useState<InventoryItem | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<InventoryItem | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<InventoryItem | null>(null);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -114,14 +117,17 @@ export default function InventarioPage() {
   };
   
   const handleDeleteProduct = async (productId: string) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
-      try {
-        await deleteInventoryItem(productId);
-        fetchProducts(); // Recargar productos
-      } catch (error) {
-        console.error("Failed to delete product:", error);
-      }
+    try {
+      await deleteInventoryItem(productId);
+      fetchProducts(); // Recargar productos
+    } catch (error) {
+      console.error("Failed to delete product:", error);
     }
+  };
+
+  const handleDeleteClick = (product: InventoryItem) => {
+    setProductToDelete(product);
+    setIsDeleteModalOpen(true);
   };
 
   const totalPages = Math.ceil(products.length / itemsPerPage);
@@ -181,7 +187,7 @@ export default function InventarioPage() {
                 <InventoryTable 
                   products={currentProducts}
                   onEdit={handleOpenModal}
-                  onDelete={handleDeleteProduct}
+                  onDelete={handleDeleteClick}
                   onView={handleViewProduct}
                 />
               )}
@@ -238,6 +244,26 @@ export default function InventarioPage() {
           </main>
         </div>
       </div>
+
+      {/* Modal de confirmación para eliminar producto */}
+      {productToDelete && (
+        <ConfirmDialog
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setProductToDelete(null);
+          }}
+          onConfirm={() => {
+            handleDeleteProduct(productToDelete.id);
+            setIsDeleteModalOpen(false);
+            setProductToDelete(null);
+          }}
+          title="Confirmar eliminación de producto"
+          description={`¿Estás seguro de que quieres eliminar el producto "${productToDelete.name}"? Esta acción no se puede deshacer.`}
+          confirmText="Eliminar producto"
+          variant="danger"
+        />
+      )}
     </RouteGuard>
   );
 } 

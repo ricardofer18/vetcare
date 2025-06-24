@@ -6,7 +6,7 @@ import { InventoryItem } from '../types';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
+import { AITextarea } from './ui/ai-textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { DisabledButton } from './RoleGuard';
 
@@ -92,15 +92,19 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
         </div>
         
         <div className="space-y-3">
-          <Label htmlFor="description" className="text-sm font-medium">Descripción</Label>
-          <Textarea
-            name="description"
-            id="description"
+          <AITextarea
             value={product.description}
-            onChange={handleChange}
-            rows={3}
+            onChange={(value) => setProduct(prev => ({ ...prev, description: value }))}
             placeholder="Descripción del producto"
-            className="hover:border-primary/50 focus:border-primary transition-colors duration-200"
+            label="Descripción"
+            field="descripcion"
+            productInfo={{
+              name: product.name,
+              category: product.category,
+              price: product.price,
+              supplier: product.supplier,
+            }}
+            minHeight="min-h-[100px]"
           />
         </div>
         

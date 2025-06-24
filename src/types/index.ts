@@ -72,7 +72,7 @@ export interface MascotaInput {
   nombre: string;
   especie: string;
   raza: string;
-  edad: number;
+  edad?: number;
   peso?: number;
   fechaNacimiento?: string;
   sexo?: 'Macho' | 'Hembra';
@@ -96,14 +96,26 @@ export interface Consulta {
     id: string;
     nombre: string;
   };
+  costoConsulta?: number;
+}
+
+export interface ArticuloUsado {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number;
+  stock: number;
 }
 
 export interface ConsultaFormData {
-  motivo: string
-  sintomas: string
-  diagnostico: string
-  tratamiento: string
-  proximaCita?: string
+  motivo: string;
+  sintomas: string;
+  diagnostico: string;
+  tratamiento: string;
+  proximaCita?: string;
+  articulosUsados?: ArticuloUsado[];
+  costoConsulta?: number;
+  totalConsulta?: number;
 }
 
 export interface QuickNote {
@@ -152,9 +164,9 @@ export const ROLE_PERMISSIONS: RolePermissions = {
   veterinario: [
     { resource: 'dashboard', actions: ['read'] },
     { resource: 'usuarios', actions: ['read'] },
-    { resource: 'pacientes', actions: ['read', 'update'] },
+    { resource: 'pacientes', actions: ['read', 'update', 'delete'] },
     { resource: 'duenos', actions: ['read'] },
-    { resource: 'consultas', actions: ['create', 'read', 'update'] },
+    { resource: 'consultas', actions: ['create', 'read', 'update', 'delete'] },
     { resource: 'citas', actions: ['read'] },
     { resource: 'inventario', actions: ['read'] },
     { resource: 'configuracion', actions: ['read'] },
@@ -164,7 +176,7 @@ export const ROLE_PERMISSIONS: RolePermissions = {
     { resource: 'usuarios', actions: ['read'] },
     { resource: 'pacientes', actions: ['read'] },
     { resource: 'duenos', actions: ['create', 'read', 'update'] },
-    { resource: 'consultas', actions: ['read'] },
+    { resource: 'consultas', actions: ['read', 'delete'] },
     { resource: 'citas', actions: ['create', 'read', 'update', 'delete'] },
     { resource: 'inventario', actions: ['read'] },
     { resource: 'configuracion', actions: ['read'] },

@@ -19,7 +19,7 @@ const iconByCategory: { [key: string]: React.ReactNode } = {
 interface InventoryTableProps {
   products: InventoryItem[];
   onEdit: (product: InventoryItem) => void;
-  onDelete: (productId: string) => void;
+  onDelete: (product: InventoryItem) => void;
   onView: (product: InventoryItem) => void;
 }
 
@@ -117,7 +117,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ products, onEdit, onDel
                       size="sm" 
                       onClick={(e) => {
                         e.stopPropagation();
-                        onDelete(product.id);
+                        onDelete(product);
                       }} 
                       tooltip="Eliminar producto"
                       className="text-destructive hover:text-destructive/80 text-xs sm:text-sm"

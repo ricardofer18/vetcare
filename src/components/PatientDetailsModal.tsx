@@ -6,13 +6,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Mascota } from '@/types';
+import { Patient } from '@/types';
 import { Calendar, MapPin, Phone, Mail, User, PawPrint, Weight, Palette, FileText } from 'lucide-react';
+import { formatearEdad } from '@/lib/utils';
 
 interface PatientDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  paciente: Mascota;
+  paciente: Patient;
 }
 
 export function PatientDetailsModal({ isOpen, onClose, paciente }: PatientDetailsModalProps) {
@@ -66,7 +67,7 @@ export function PatientDetailsModal({ isOpen, onClose, paciente }: PatientDetail
                       <Calendar className="w-4 h-4" />
                       <span>Edad:</span>
                     </div>
-                    <p className="font-medium">{paciente.edad} años</p>
+                    <p className="font-medium">{formatearEdad(paciente.edad, paciente.fechaNacimiento)}</p>
                   </div>
                   
                   <div className="space-y-2">
@@ -135,36 +136,49 @@ export function PatientDetailsModal({ isOpen, onClose, paciente }: PatientDetail
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <User className="w-4 h-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">{paciente.dueno.nombre} {paciente.dueno.apellido}</p>
-                        <p className="text-sm text-muted-foreground">RUT: {paciente.dueno.rut}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <User className="w-4 h-4" />
+                        <span>Nombre:</span>
                       </div>
+                      <p className="font-medium">{paciente.dueno.nombre} {paciente.dueno.apellido}</p>
                     </div>
                     
-                    {paciente.dueno.telefono && (
-                      <div className="flex items-center gap-3">
-                        <Phone className="w-4 h-4 text-muted-foreground" />
-                        <span>{paciente.dueno.telefono}</span>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="w-4 h-4" />
+                        <span>RUT:</span>
                       </div>
-                    )}
+                      <p className="font-medium">{paciente.dueno.rut}</p>
+                    </div>
                     
-                    {paciente.dueno.email && (
-                      <div className="flex items-center gap-3">
-                        <Mail className="w-4 h-4 text-muted-foreground" />
-                        <span>{paciente.dueno.email}</span>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Phone className="w-4 h-4" />
+                        <span>Teléfono:</span>
                       </div>
-                    )}
+                      <p className="font-medium">{paciente.dueno.telefono}</p>
+                    </div>
                     
-                    {paciente.dueno.direccion && (
-                      <div className="flex items-center gap-3">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <span>{paciente.dueno.direccion}</span>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Mail className="w-4 h-4" />
+                        <span>Email:</span>
                       </div>
-                    )}
+                      <p className="font-medium">{paciente.dueno.email}</p>
+                    </div>
                   </div>
+                  
+                  {paciente.dueno.direccion && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="w-4 h-4" />
+                        <span>Dirección:</span>
+                      </div>
+                      <p className="font-medium">{paciente.dueno.direccion}</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

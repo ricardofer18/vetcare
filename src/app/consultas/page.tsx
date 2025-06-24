@@ -12,7 +12,7 @@ import { Search, Calendar, Clock, Trash2, Pencil } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { DetalleConsultaModal } from '@/components/consultas/DetalleConsultaModal';
 import { useToast } from '@/components/ui/use-toast';
-import { getAppointments, deleteAppointment } from '@/lib/firestore';
+import { getAppointments, deleteAppointment, deleteConsulta } from '@/lib/firestore';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { EditarConsultaModal } from '@/components/consultas/EditarConsultaModal';
 import { NuevaConsultaModal } from '@/components/consultas/NuevaConsultaModal';
@@ -21,6 +21,8 @@ import {
   DisabledButton,
   RouteGuard
 } from '@/components/RoleGuard';
+import { convertFirestoreTimestamp, formatDateForDisplay } from '@/lib/utils';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export default function ConsultasPage() {
   const { user, hasPermission } = useAuth();
@@ -34,6 +36,10 @@ export default function ConsultasPage() {
   const [isNuevaConsultaOpen, setIsNuevaConsultaOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isDeleteConsultaModalOpen, setIsDeleteConsultaModalOpen] = useState(false);
+  const [isDeleteAppointmentModalOpen, setIsDeleteAppointmentModalOpen] = useState(false);
+  const [consultaToDelete, setConsultaToDelete] = useState<Consulta | null>(null);
+  const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
 
   const cargarConsultas = async () => {
     try {
@@ -92,13 +98,13 @@ export default function ConsultasPage() {
             id: consultaDoc.id,
             mascotaId,
             veterinarioId: consultaData.veterinarioId,
-            fecha: (consultaData.fecha as Timestamp).toDate(),
+            fecha: convertFirestoreTimestamp(consultaData.fecha),
             motivo: consultaData.motivo,
             sintomas: consultaData.sintomas,
             diagnostico: consultaData.diagnostico,
             tratamiento: consultaData.tratamiento,
             estado: consultaData.estado || 'Pendiente', // Por defecto pendiente si no existe
-            proximaCita: consultaData.proximaCita ? (consultaData.proximaCita as Timestamp).toDate() : undefined,
+            proximaCita: consultaData.proximaCita ? convertFirestoreTimestamp(consultaData.proximaCita) : undefined,
             mascota: {
               id: mascotaId,
               nombre: mascotaData.nombre,
@@ -169,13 +175,7 @@ export default function ConsultasPage() {
   }, []);
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatDateForDisplay(date, true);
   };
 
   const formatAppointmentDate = (dateStr: string, timeStr: string) => {
@@ -198,23 +198,21 @@ export default function ConsultasPage() {
   });
 
   const handleDeleteAppointment = async (appointmentId: string, patientName: string) => {
-    if (confirm(`¿Estás seguro de que quieres eliminar la cita de ${patientName}?`)) {
-      try {
-        await deleteAppointment(appointmentId);
-        toast({
-          title: "Cita eliminada",
-          description: "La cita ha sido eliminada exitosamente.",
-        });
-        // Recargar las citas
-        cargarCitasAgendadas();
-      } catch (error) {
-        console.error('Error al eliminar cita:', error);
-        toast({
-          title: "Error",
-          description: "No se pudo eliminar la cita. Por favor, intenta de nuevo.",
-          variant: 'destructive'
-        });
-      }
+    try {
+      await deleteAppointment(appointmentId);
+      toast({
+        title: "Cita eliminada",
+        description: "La cita ha sido eliminada exitosamente.",
+      });
+      // Recargar las citas
+      cargarCitasAgendadas();
+    } catch (error) {
+      console.error('Error al eliminar cita:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la cita. Por favor, intenta de nuevo.",
+        variant: 'destructive'
+      });
     }
   };
 
@@ -222,8 +220,6 @@ export default function ConsultasPage() {
     try {
       console.log('Actualizando consulta:', consulta);
       
-      // La ruta correcta debería ser: duenos/{duenoId}/mascotas/{mascotaId}/consultas/{consultaId}
-      // Pero necesitamos obtener el duenoId de la consulta
       const duenoId = consulta.mascota?.duenoId || consulta.mascota?.dueno?.id;
       
       if (!duenoId) {
@@ -236,10 +232,8 @@ export default function ConsultasPage() {
         return;
       }
 
-      // Actualizar el estado de la consulta en Firestore
+      // Actualizar el estado de la consulta a 'Realizada'
       const consultaRef = doc(db, 'duenos', duenoId, 'mascotas', consulta.mascotaId, 'consultas', consulta.id);
-      console.log('Referencia de consulta:', consultaRef.path);
-      
       await updateDoc(consultaRef, {
         estado: 'Realizada'
       });
@@ -256,6 +250,41 @@ export default function ConsultasPage() {
       toast({
         title: "Error",
         description: "No se pudo actualizar la consulta. Por favor, intenta de nuevo.",
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleDeleteConsulta = async (consulta: Consulta) => {
+    try {
+      console.log('Eliminando consulta:', consulta);
+      
+      const duenoId = consulta.mascota?.duenoId || consulta.mascota?.dueno?.id;
+      
+      if (!duenoId) {
+        console.error('No se pudo obtener el duenoId de la consulta');
+        toast({
+          title: "Error",
+          description: "No se pudo identificar el dueño de la mascota.",
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      await deleteConsulta(duenoId, consulta.mascotaId, consulta.id);
+
+      toast({
+        title: "Consulta eliminada",
+        description: "La consulta ha sido eliminada exitosamente.",
+      });
+
+      // Recargar las consultas
+      cargarConsultas();
+    } catch (error) {
+      console.error('Error al eliminar consulta:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la consulta. Por favor, intenta de nuevo.",
         variant: 'destructive'
       });
     }
@@ -342,7 +371,8 @@ export default function ConsultasPage() {
                               tooltip="Eliminar cita agendada"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDeleteAppointment(appointment.id, appointment.patientName);
+                                setAppointmentToDelete(appointment);
+                                setIsDeleteAppointmentModalOpen(true);
                               }}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -436,6 +466,23 @@ export default function ConsultasPage() {
                                   </DisabledButton>
                                   <DisabledButton
                                     resource="consultas"
+                                    action="delete"
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    tooltip="Eliminar consulta"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      console.log('Botón Eliminar clickeado');
+                                      setConsultaToDelete(consulta);
+                                      setIsDeleteConsultaModalOpen(true);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Eliminar
+                                  </DisabledButton>
+                                  <DisabledButton
+                                    resource="consultas"
                                     action="update"
                                     size="sm"
                                     className="bg-green-600 hover:bg-green-700"
@@ -518,6 +565,23 @@ export default function ConsultasPage() {
                                     <Pencil className="h-4 w-4 mr-2" />
                                     Editar
                                   </DisabledButton>
+                                  <DisabledButton
+                                    resource="consultas"
+                                    action="delete"
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    tooltip="Eliminar consulta"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      console.log('Botón Eliminar clickeado');
+                                      setConsultaToDelete(consulta);
+                                      setIsDeleteConsultaModalOpen(true);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Eliminar
+                                  </DisabledButton>
                                 </div>
                               </CardTitle>
                             </CardHeader>
@@ -573,6 +637,46 @@ export default function ConsultasPage() {
           }}
           onConsultaCreated={handleNuevaConsultaCreated}
           selectedAppointment={selectedAppointment}
+        />
+      )}
+
+      {/* Modal de confirmación para eliminar consulta */}
+      {consultaToDelete && (
+        <ConfirmDialog
+          isOpen={isDeleteConsultaModalOpen}
+          onClose={() => {
+            setIsDeleteConsultaModalOpen(false);
+            setConsultaToDelete(null);
+          }}
+          onConfirm={() => {
+            handleDeleteConsulta(consultaToDelete);
+            setIsDeleteConsultaModalOpen(false);
+            setConsultaToDelete(null);
+          }}
+          title="Confirmar eliminación de consulta"
+          description={`¿Estás seguro de que quieres eliminar la consulta de ${consultaToDelete.mascota?.nombre || 'Paciente'} (${consultaToDelete.mascota?.dueno?.nombre || 'Dueño'})? Esta acción no se puede deshacer.`}
+          confirmText="Eliminar consulta"
+          variant="danger"
+        />
+      )}
+
+      {/* Modal de confirmación para eliminar cita */}
+      {appointmentToDelete && (
+        <ConfirmDialog
+          isOpen={isDeleteAppointmentModalOpen}
+          onClose={() => {
+            setIsDeleteAppointmentModalOpen(false);
+            setAppointmentToDelete(null);
+          }}
+          onConfirm={() => {
+            handleDeleteAppointment(appointmentToDelete.id, appointmentToDelete.patientName);
+            setIsDeleteAppointmentModalOpen(false);
+            setAppointmentToDelete(null);
+          }}
+          title="Confirmar eliminación de cita"
+          description={`¿Estás seguro de que quieres eliminar la cita de ${appointmentToDelete.patientName}? Esta acción no se puede deshacer.`}
+          confirmText="Eliminar cita"
+          variant="danger"
         />
       )}
     </RouteGuard>

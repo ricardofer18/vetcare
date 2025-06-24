@@ -20,6 +20,7 @@ import {
   getDiagnosticoSuggestion, 
   getTratamientoSuggestion,
   getObservacionesSuggestion,
+  getProductDescriptionSuggestion,
   isAIAvailable,
   AISuggestionResponse 
 } from '@/lib/ai-service';
@@ -29,14 +30,20 @@ interface AITextareaProps {
   onChange: (value: string) => void;
   placeholder: string;
   label: string;
-  field: 'sintomas' | 'diagnostico' | 'tratamiento' | 'observaciones';
-  mascotaInfo: {
+  field: 'sintomas' | 'diagnostico' | 'tratamiento' | 'observaciones' | 'descripcion';
+  mascotaInfo?: {
     nombre: string;
     especie: string;
     raza: string;
     edad: number;
     peso?: number;
     sexo?: string;
+  };
+  productInfo?: {
+    name: string;
+    category: string;
+    price?: number;
+    supplier?: string;
   };
   motivo?: string;
   sintomas?: string;
@@ -52,6 +59,7 @@ export function AITextarea({
   label,
   field,
   mascotaInfo,
+  productInfo,
   motivo,
   sintomas,
   diagnostico,
@@ -106,6 +114,11 @@ export function AITextarea({
             suggestion: "Paciente requiere monitoreo especial por edad. Considerar predisposiciones de la raza. Mantener registro de cambios en comportamiento. Programar controles preventivos regulares.",
             confidence: 0.75,
             reasoning: "Consideraciones específicas para esta raza y edad"
+          },
+          descripcion: {
+            suggestion: "Producto veterinario de alta calidad para uso profesional. Composición específica para la categoría seleccionada. Indicado para uso veterinario bajo supervisión profesional. Mantener en lugar fresco y seco, protegido de la luz directa. Verificar fecha de vencimiento antes de usar.",
+            confidence: 0.85,
+            reasoning: "Descripción estándar para productos veterinarios de esta categoría"
           }
         };
 
@@ -132,16 +145,24 @@ export function AITextarea({
 
       switch (field) {
         case 'sintomas':
+          if (!mascotaInfo) throw new Error('Información de mascota requerida');
           aiResponse = await getSintomasSuggestion(value, mascotaInfo, motivo);
           break;
         case 'diagnostico':
+          if (!mascotaInfo) throw new Error('Información de mascota requerida');
           aiResponse = await getDiagnosticoSuggestion(value, mascotaInfo, sintomas || '', motivo);
           break;
         case 'tratamiento':
+          if (!mascotaInfo) throw new Error('Información de mascota requerida');
           aiResponse = await getTratamientoSuggestion(value, mascotaInfo, sintomas || '', diagnostico || '', motivo);
           break;
         case 'observaciones':
+          if (!mascotaInfo) throw new Error('Información de mascota requerida');
           aiResponse = await getObservacionesSuggestion(value, mascotaInfo);
+          break;
+        case 'descripcion':
+          if (!productInfo) throw new Error('Información de producto requerida');
+          aiResponse = await getProductDescriptionSuggestion(value, productInfo);
           break;
         default:
           throw new Error('Campo no soportado');
@@ -195,6 +216,8 @@ export function AITextarea({
         return <Check className="w-4 h-4" />;
       case 'observaciones':
         return <FileText className="w-4 h-4" />;
+      case 'descripcion':
+        return <FileText className="w-4 h-4" />;
       default:
         return <Sparkles className="w-4 h-4" />;
     }
@@ -210,6 +233,8 @@ export function AITextarea({
         return 'bg-green-100 text-green-800 border-green-200';
       case 'observaciones':
         return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'descripcion':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
