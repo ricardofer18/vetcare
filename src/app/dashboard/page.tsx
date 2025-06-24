@@ -370,7 +370,7 @@ export default function DashboardPage() {
       <div className="flex h-screen bg-background">
         <div className="flex flex-col flex-1">
           <Header title="Gestión de Veterinaria" />
-          <main className="flex-1 p-2 sm:p-4 lg:p-6 xl:p-8 overflow-y-auto bg-background space-y-3 sm:space-y-4 lg:space-y-6">
+          <main className="flex-1 p-2 sm:p-4 lg:p-6 xl:p-8 overflow-visible bg-background space-y-3 sm:space-y-4 lg:space-y-6">
             
             {/* Estadísticas Principales - Mejorado para móviles */}
             <div className="grid gap-2 sm:gap-3 lg:gap-4 grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
